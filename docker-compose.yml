@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  espacio-pwa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: espacio-pwa
+    ports:
+      - "8080:80"
+    restart: always

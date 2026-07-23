@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #FAFAF7;
+  --sidebar: #F2F0EA;
+  --ink: #1C1B19;
+  --muted: #8A867D;
+  --border: #E5E2D9;
+  --accent: #0E7C66;
+  --accent-soft: #E3EFEA;
+  --callout: #E9F3EF;
+  --danger: #B4462F;
+  --card: #FFFFFF;
+  --hover: rgba(0, 0, 0, 0.05);
+  color-scheme: light;
+}
+
+:root.dark {
+  --bg: #1A1917;
+  --sidebar: #211F1C;
+  --ink: #ECEAE4;
+  --muted: #9A968C;
+  --border: #34302A;
+  --accent: #3DAB90;
+  --accent-soft: #233029;
+  --callout: #1E2C27;
+  --danger: #E0765C;
+  --card: #26231E;
+  --hover: rgba(255, 255, 255, 0.07);
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  transition: background-color 0.2s;
+}
+
+/* estado hover que se adapta al tema */
+.hov { transition: background-color 0.15s; }
+.hov:hover { background-color: var(--hover) !important; }
+
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
