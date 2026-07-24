@@ -5,6 +5,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    image: espacio-backend:latest
     container_name: espacio-backend
     volumes:
       - espacio-db-data:/app/data
@@ -14,6 +15,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: espacio-pwa:latest
     container_name: espacio-pwa
     ports:
       - "8080:80"
