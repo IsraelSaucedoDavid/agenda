@@ -68,18 +68,76 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [notifOn, setNotifOn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("synced"); // "synced", "syncing", "offline"
+
+  /* --- cliente de sincronización --- */
+  const syncWithServer = useCallback(async (localData) => {
+    if (!localData || !localData.order?.length) return;
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch("/api/sync");
+      if (!res.ok) throw new Error("HTTP error " + res.status);
+      const serverData = await res.json();
+
+      // Caso 1: Servidor no tiene datos guardados todavía
+      if (!serverData.updatedAt) {
+        const uploadRes = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(localData),
+        });
+        if (!uploadRes.ok) throw new Error("Upload error");
+        setSyncStatus("synced");
+        return;
+      }
+
+      const localTime = new Date(localData.updatedAt || 0).getTime();
+      const serverTime = new Date(serverData.updatedAt || 0).getTime();
+
+      // Caso 2: El servidor tiene datos más recientes
+      if (serverTime > localTime) {
+        setPages(serverData.pages);
+        setOrder(serverData.order);
+        try { localStorage.setItem(KEY, JSON.stringify(serverData)); } catch {}
+        setSyncStatus("synced");
+      }
+      // Caso 3: El cliente tiene datos más recientes (cambios locales offline)
+      else if (localTime > serverTime) {
+        const uploadRes = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(localData),
+        });
+        if (!uploadRes.ok) throw new Error("Upload error");
+        setSyncStatus("synced");
+      }
+      // Caso 4: Están iguales
+      else {
+        setSyncStatus("synced");
+      }
+    } catch (err) {
+      console.warn("Sincronización fallida:", err);
+      setSyncStatus("offline");
+    }
+  }, []);
 
   /* --- carga de contenido --- */
   useEffect(() => {
     const data = store.load();
+    let initialData = data;
     if (data && data.order?.length) {
       setPages(data.pages); setOrder(data.order); setCurrentId(data.order[0]);
     } else {
       const seed = seedWorkspace();
-      setPages(seed.pages); setOrder(seed.order); setCurrentId(seed.order[0]);
+      const t = new Date().toISOString();
+      const seedWithTime = { ...seed, updatedAt: t };
+      setPages(seedWithTime.pages); setOrder(seedWithTime.order); setCurrentId(seedWithTime.order[0]);
+      store.save(seedWithTime);
+      initialData = seedWithTime;
     }
     setLoading(false);
-  }, []);
+    syncWithServer(initialData);
+  }, [syncWithServer]);
 
   /* --- carga de ajustes --- */
   useEffect(() => {
@@ -102,8 +160,13 @@ export default function App() {
   useEffect(() => {
     if (loading) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => store.save({ pages, order }), 300);
-  }, [pages, order, loading]);
+    saveTimer.current = setTimeout(() => {
+      const t = new Date().toISOString();
+      const payload = { pages, order, updatedAt: t };
+      store.save(payload);
+      syncWithServer(payload);
+    }, 1200);
+  }, [pages, order, loading, syncWithServer]);
 
   const page = pages[currentId];
 
@@ -145,9 +208,16 @@ export default function App() {
     });
   };
 
-  const quickAdd = (text, date, time) => {
+  const quickAdd = (text, date, time, checked = false) => {
     if (!text || !text.trim()) return;
-    const block = { ...emptyBlock("todo"), text: text.trim(), date: date || null, time: time || null };
+    const block = {
+      ...emptyBlock("todo"),
+      text: text.trim(),
+      date: date || null,
+      time: time || null,
+      checked,
+      completedAt: checked ? new Date().toISOString() : null
+    };
     const inboxId = order.find(pid => pages[pid]?.inbox);
     if (!inboxId) {
       const np = { ...newPage(null), icon: "📥", title: "Bandeja de entrada", inbox: true, blocks: [block] };
@@ -274,6 +344,21 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="grid h-6 w-6 place-items-center rounded-md text-xs font-bold text-white" style={{ background: T.accent }}>E</span>
               <span className="font-serif text-[15px] font-semibold tracking-tight">Espacio</span>
+              <div className="flex items-center ml-1" title={
+                syncStatus === "synced" ? "Sincronizado con el servidor" : 
+                syncStatus === "syncing" ? "Sincronizando..." : 
+                "Sin conexión (guardado en este dispositivo)"
+              }>
+                {syncStatus === "syncing" && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                )}
+                {syncStatus === "synced" && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                )}
+                {syncStatus === "offline" && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                )}
+              </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="hov rounded p-1"><PanelLeftClose size={16} style={{ color: T.muted }} /></button>
           </div>
@@ -326,7 +411,7 @@ export default function App() {
         )}
 
         {view === "calendar" ? (
-          <CalendarView todos={allTodos} gotoTask={gotoTask} quickAdd={quickAdd} />
+          <CalendarView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
         ) : view === "agenda" ? (
           <AgendaView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
         ) : page ? (
@@ -450,10 +535,12 @@ function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub
 }
 
 /* ================= Vista Calendario ================= */
-function CalendarView({ todos, gotoTask, quickAdd }) {
+function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
   const now = new Date();
   const [cur, setCur] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [addModal, setAddModal] = useState(null); // null o { date, text, time, checked }
   const today = todayStr();
+  const [selectedDate, setSelectedDate] = useState(today);
 
   const byDate = useMemo(() => {
     const map = {};
@@ -470,13 +557,22 @@ function CalendarView({ todos, gotoTask, quickAdd }) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(`${cur.y}-${pad(cur.m + 1)}-${pad(d)}`);
 
   const shift = (n) => setCur(c => { const d = new Date(c.y, c.m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const goToday = () => setCur({ y: now.getFullYear(), m: now.getMonth() });
-  const addOnDay = (ds) => { const t = window.prompt(`Nueva tarea para el ${fromStr(ds).getDate()} de ${MONTHS[cur.m]}`); if (t) quickAdd(t, ds, null); };
+  const goToday = () => { setCur({ y: now.getFullYear(), m: now.getMonth() }); setSelectedDate(today); };
+  
+  const handleSaveModal = () => {
+    if (addModal && addModal.text.trim()) {
+      quickAdd(addModal.text, addModal.date, addModal.time || null, addModal.checked);
+      setSelectedDate(addModal.date); // Select the day of the newly added activity
+      setAddModal(null);
+    }
+  };
+
+  const fieldStyle = { borderColor: T.border, background: "var(--card)", color: T.ink };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-14 sm:px-8">
+    <div className="mx-auto w-full max-w-4xl px-3 pb-24 pt-14 sm:px-8">
       <div className="mb-4 flex items-center gap-3">
-        <h1 className="font-serif text-2xl font-bold capitalize">{MONTHS[cur.m]} {cur.y}</h1>
+        <h1 className="font-serif text-xl md:text-2xl font-bold capitalize">{MONTHS[cur.m]} {cur.y}</h1>
         <div className="ml-auto flex items-center gap-1">
           <button onClick={() => shift(-1)} className="hov rounded-md border p-1.5" style={{ borderColor: T.border }}><ChevronLeft size={16} /></button>
           <button onClick={goToday} className="hov rounded-md border px-3 py-1.5 text-[13px] font-medium" style={{ borderColor: T.border }}>Hoy</button>
@@ -485,32 +581,156 @@ function CalendarView({ todos, gotoTask, quickAdd }) {
       </div>
 
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border" style={{ borderColor: T.border, background: T.border }}>
-        {WEEK_S.map(w => <div key={w} className="py-2 text-center text-[11px] font-semibold" style={{ background: T.sidebar, color: T.muted }}>{w}</div>)}
+        {WEEK_S.map(w => <div key={w} className="py-2 text-center text-[10px] md:text-[11px] font-semibold" style={{ background: T.sidebar, color: T.muted }}>{w}</div>)}
         {cells.map((ds, i) => {
-          if (!ds) return <div key={i} style={{ background: T.bg }} className="min-h-[92px]" />;
+          if (!ds) return <div key={i} style={{ background: T.bg }} className="min-h-[56px] md:min-h-[92px]" />;
           const items = byDate[ds] || [];
           const isToday = ds === today;
+          const isSelected = ds === selectedDate;
           return (
-            <div key={ds} className="group min-h-[92px] p-1.5" style={{ background: T.bg }}>
+            <div key={ds} onClick={() => setSelectedDate(ds)}
+                 className="group min-h-[56px] md:min-h-[92px] p-1 md:p-1.5 cursor-pointer transition select-none relative"
+                 style={{
+                   background: T.bg,
+                   boxShadow: isSelected ? `inset 0 0 0 2px ${T.accent}` : "none",
+                   zIndex: isSelected ? 10 : "auto"
+                 }}>
               <div className="mb-1 flex items-center justify-between">
-                <span className="grid h-5 w-5 place-items-center rounded-full text-[11px] font-medium" style={{ background: isToday ? T.accent : "transparent", color: isToday ? "#fff" : T.muted }}>{fromStr(ds).getDate()}</span>
-                <button onClick={() => addOnDay(ds)} className="opacity-0 transition group-hover:opacity-100"><Plus size={12} style={{ color: T.muted }} /></button>
+                <span className="grid h-5 w-5 place-items-center rounded-full text-[10px] md:text-[11px] font-medium" style={{ background: isToday ? T.accent : "transparent", color: isToday ? "#fff" : T.muted }}>{fromStr(ds).getDate()}</span>
+                <button onClick={(e) => { e.stopPropagation(); setAddModal({ date: ds, text: "", time: "", checked: false }); }}
+                        className="opacity-0 md:group-hover:opacity-100 transition"><Plus size={12} style={{ color: T.muted }} /></button>
               </div>
-              <div className="space-y-1">
+
+              {/* Vista escritorio: Texto de tareas (max 3) */}
+              <div className="hidden md:block space-y-1">
                 {items.slice(0, 3).map(t => (
-                  <button key={t.blockId} onClick={() => gotoTask(t.pageId)} title={t.text}
-                          className="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] transition hover:brightness-95"
-                          style={{ background: t.checked ? T.border : T.accentSoft, color: t.checked ? T.muted : T.ink, textDecoration: t.checked ? "line-through" : "none" }}>
-                    {t.time ? `${t.time} ` : ""}{t.text}
-                  </button>
+                  <div key={t.blockId} className="group/item flex items-center gap-1 rounded px-1 py-0.5 text-left text-[11px] transition hover:brightness-95"
+                       style={{ background: t.checked ? T.border : T.accentSoft, color: t.checked ? T.muted : T.ink }}
+                       onClick={(e) => e.stopPropagation() /* Prevent day selection change when clicking inner buttons */}>
+                    <button onClick={(e) => { e.stopPropagation(); toggleDone(t.pageId, t.blockId, !t.checked); }}
+                            className="grid h-3.5 w-3.5 flex-shrink-0 place-items-center rounded border transition"
+                            style={{ borderColor: t.checked ? T.accent : T.border, background: t.checked ? T.accent : "transparent" }}>
+                      {t.checked && <CheckSquare size={9} className="text-white" strokeWidth={3} />}
+                    </button>
+                    <button onClick={() => gotoTask(t.pageId)} title={t.text}
+                            className="min-w-0 flex-1 truncate text-left"
+                            style={{ textDecoration: t.checked ? "line-through" : "none" }}>
+                      {t.time ? `${t.time} ` : ""}{t.text}
+                    </button>
+                  </div>
                 ))}
                 {items.length > 3 && <span className="px-1 text-[10px]" style={{ color: T.muted }}>+{items.length - 3} más</span>}
+              </div>
+
+              {/* Vista móvil: Indicadores de puntos compactos */}
+              <div className="flex md:hidden flex-wrap justify-center gap-0.5 mt-0.5">
+                {items.slice(0, 4).map(t => (
+                  <span key={t.blockId} className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: t.checked ? T.border : T.accent }} />
+                ))}
+                {items.length > 4 && <span className="text-[8px] leading-none" style={{ color: T.muted }}>+</span>}
               </div>
             </div>
           );
         })}
       </div>
-      <p className="mt-3 text-[12px]" style={{ color: T.muted }}>Pasa el cursor por un día y pulsa <Plus size={11} className="inline" /> para agendar. Toca una tarea para ir a su página.</p>
+      <p className="mt-3 hidden md:block text-[12px]" style={{ color: T.muted }}>Pasa el cursor por un día y pulsa <Plus size={11} className="inline" /> para agendar. Toca una tarea para ir a su página.</p>
+      <p className="mt-2 block md:hidden text-[11px]" style={{ color: T.muted }}>Toca un día para ver su detalle o registrar una actividad.</p>
+
+      {/* Detalle del día seleccionado (visible en móvil y útil en escritorio) */}
+      {selectedDate && (
+        <div className="mt-5 rounded-xl border p-4 shadow-sm" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-serif text-[15px] font-bold">
+              {(() => {
+                const d = fromStr(selectedDate);
+                return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
+              })()}
+            </h3>
+            <button onClick={() => setAddModal({ date: selectedDate, text: "", time: "", checked: false })}
+                    className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white transition cursor-pointer"
+                    style={{ background: T.accent }}>
+              <Plus size={14} /> Nueva actividad
+            </button>
+          </div>
+          
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {(byDate[selectedDate] || []).length === 0 ? (
+              <p className="text-[13px] py-4 text-center italic" style={{ color: T.muted }}>No hay actividades registradas para este día.</p>
+            ) : (
+              (byDate[selectedDate] || []).map(t => (
+                <div key={t.blockId} className="flex items-start gap-2 rounded-lg p-2.5 transition hover:brightness-95"
+                     style={{ background: T.bg }}>
+                  <button onClick={() => toggleDone(t.pageId, t.blockId, !t.checked)}
+                          className="mt-0.5 grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded border transition"
+                          style={{ borderColor: t.checked ? T.accent : T.border, background: t.checked ? T.accent : "transparent" }}>
+                    {t.checked && <CheckSquare size={12} className="text-white" strokeWidth={3} />}
+                  </button>
+                  <button onClick={() => gotoTask(t.pageId)} className="min-w-0 flex-1 text-left">
+                    <span className="block text-[14px] leading-snug"
+                          style={{ textDecoration: t.checked ? "line-through" : "none", color: t.checked ? T.muted : T.ink }}>
+                      {t.text}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: T.muted }}>
+                      <span>{t.pageIcon} {t.pageTitle}</span>
+                      {t.time && <span>· {t.time}</span>}
+                    </span>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal para agregar actividad rápida */}
+      {addModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setAddModal(null)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-xl border p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150" style={{ background: T.bg, borderColor: T.border, color: T.ink }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-serif text-lg font-bold">Agregar actividad</h2>
+              <button onClick={() => setAddModal(null)} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
+            </div>
+
+            <section className="mb-4">
+              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Fecha</label>
+              <div className="text-[14px] font-medium" style={{ color: T.ink }}>
+                {(() => { const d = fromStr(addModal.date); return `${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`; })()}
+              </div>
+            </section>
+
+            <section className="mb-4">
+              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Descripción</label>
+              <input type="text" autoFocus value={addModal.text} onChange={e => setAddModal({ ...addModal, text: e.target.value })}
+                     onKeyDown={e => { if (e.key === "Enter") handleSaveModal(); }}
+                     placeholder="Escribe qué hiciste o tienes que hacer..."
+                     className="w-full rounded border px-3 py-2 text-[14px] outline-none" style={fieldStyle} />
+            </section>
+
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <section>
+                <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Hora (opcional)</label>
+                <input type="time" value={addModal.time || ""} onChange={e => setAddModal({ ...addModal, time: e.target.value })}
+                       className="w-full rounded border px-2 py-1.5 text-[13px]" style={fieldStyle} />
+              </section>
+              <section>
+                <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Estado</label>
+                <button onClick={() => setAddModal({ ...addModal, checked: !addModal.checked })}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-md border py-1.5 text-[13px] font-medium transition cursor-pointer"
+                        style={{ borderColor: addModal.checked ? T.accent : T.border, background: addModal.checked ? T.accentSoft : "transparent", color: addModal.checked ? T.accent : T.muted }}>
+                  {addModal.checked ? <CheckSquare size={14} /> : <Minus size={14} />}
+                  {addModal.checked ? "Realizada" : "Por hacer"}
+                </button>
+              </section>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2 border-t pt-4" style={{ borderColor: T.border }}>
+              <button onClick={() => setAddModal(null)} className="hov rounded-md border px-4 py-2 text-[13px] font-medium" style={{ borderColor: T.border, color: T.muted }}>Cancelar</button>
+              <button onClick={handleSaveModal} disabled={!addModal.text.trim()} className="rounded-md px-4 py-2 text-[13px] font-medium text-white transition disabled:opacity-50" style={{ background: T.accent }}>Agregar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -523,6 +743,7 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
   const [qText, setQText] = useState("");
   const [qDate, setQDate] = useState(today);
   const [qTime, setQTime] = useState("");
+  const [qChecked, setQChecked] = useState(false);
 
   const pend = todos.filter(t => !t.checked);
   const byDate = (a, b) => (a.date || "9").localeCompare(b.date || "9") || (a.time || "99").localeCompare(b.time || "99");
@@ -541,7 +762,7 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
   for (const t of done) { const day = t.completedAt.slice(0, 10); (doneByDay[day] ||= []).push(t); }
   const doneDays = Object.keys(doneByDay).sort((a, b) => b.localeCompare(a));
 
-  const submit = () => { if (qText.trim()) { quickAdd(qText, qDate || null, qTime || null); setQText(""); setQTime(""); } };
+  const submit = () => { if (qText.trim()) { quickAdd(qText, qDate || null, qTime || null, qChecked); setQText(""); setQTime(""); setQChecked(false); } };
 
   const Row = ({ t }) => (
     <div className="hov group flex items-start gap-2 rounded-md px-2 py-1.5">
@@ -565,12 +786,20 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
     <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-14 sm:px-8">
       <h1 className="mb-4 font-serif text-2xl font-bold">Agenda</h1>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-lg border p-2" style={{ borderColor: T.border, background: T.sidebar }}>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center gap-2 rounded-lg border p-2" style={{ borderColor: T.border, background: T.sidebar }}>
         <input value={qText} onChange={e => setQText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") submit(); }}
-               placeholder="Agregar tarea…" className="min-w-[140px] flex-1 bg-transparent px-1 text-[14px] outline-none placeholder:text-neutral-400" style={{ color: T.ink }} />
-        <input type="date" value={qDate} onChange={e => setQDate(e.target.value)} className="rounded border px-2 py-1 text-[12px]" style={fieldStyle} />
-        <input type="time" value={qTime} onChange={e => setQTime(e.target.value)} className="rounded border px-2 py-1 text-[12px]" style={fieldStyle} />
-        <button onClick={submit} className="rounded-md px-3 py-1.5 text-[13px] font-medium text-white" style={{ background: T.accent }}>Agregar</button>
+               placeholder="Agregar tarea…" className="w-full md:flex-1 bg-transparent px-1 py-1.5 text-[14px] outline-none placeholder:text-neutral-400" style={{ color: T.ink }} />
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+          <input type="date" value={qDate} onChange={e => setQDate(e.target.value)} className="flex-1 md:flex-none rounded border px-2 py-1.5 text-[12px] min-w-[110px]" style={fieldStyle} />
+          <input type="time" value={qTime} onChange={e => setQTime(e.target.value)} className="flex-1 md:flex-none rounded border px-2 py-1.5 text-[12px] min-w-[70px]" style={fieldStyle} />
+          <button onClick={() => setQChecked(!qChecked)}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-1.5 rounded border px-2 py-1.5 text-[12px] font-medium transition cursor-pointer"
+                  style={{ borderColor: qChecked ? T.accent : T.border, background: qChecked ? T.accentSoft : "transparent", color: qChecked ? T.accent : T.muted }}>
+            {qChecked ? <CheckSquare size={13} /> : <Minus size={13} />}
+            {qChecked ? "Realizada" : "Por hacer"}
+          </button>
+          <button onClick={submit} className="w-full md:w-auto rounded-md px-3 py-1.5 text-[13px] font-medium text-white cursor-pointer" style={{ background: T.accent }}>Agregar</button>
+        </div>
       </div>
 
       {groups.every(g => g.items.length === 0) && done.length === 0 && (

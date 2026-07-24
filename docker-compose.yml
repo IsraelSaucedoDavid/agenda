@@ -1,6 +1,15 @@
 version: '3.8'
 
 services:
+  espacio-backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: espacio-backend
+    volumes:
+      - espacio-db-data:/app/data
+    restart: always
+
   espacio-pwa:
     build:
       context: .
@@ -8,4 +17,9 @@ services:
     container_name: espacio-pwa
     ports:
       - "8080:80"
+    depends_on:
+      - espacio-backend
     restart: always
+
+volumes:
+  espacio-db-data:
