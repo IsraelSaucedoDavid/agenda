@@ -96,10 +96,15 @@ export default function App() {
 
       // Caso 2: El servidor tiene datos más recientes
       if (serverTime > localTime) {
-        setPages(serverData.pages);
-        setOrder(serverData.order);
-        try { localStorage.setItem(KEY, JSON.stringify(serverData)); } catch {}
-        setSyncStatus("synced");
+        if (serverData.pages && serverData.order && serverData.order.length > 0) {
+          setPages(serverData.pages);
+          setOrder(serverData.order);
+          try { localStorage.setItem(KEY, JSON.stringify(serverData)); } catch {}
+          setSyncStatus("synced");
+        } else {
+          console.warn("El servidor retornó datos de sincronización vacíos o corruptos, ignorando sobreescritura.");
+          setSyncStatus("offline");
+        }
       }
       // Caso 3: El cliente tiene datos más recientes (cambios locales offline)
       else if (localTime > serverTime) {
@@ -157,6 +162,7 @@ export default function App() {
 
   /* --- guarda contenido --- */
   const saveTimer = useRef();
+  const syncTimer = useRef();
   useEffect(() => {
     if (loading) return;
     clearTimeout(saveTimer.current);
@@ -164,8 +170,12 @@ export default function App() {
       const t = new Date().toISOString();
       const payload = { pages, order, updatedAt: t };
       store.save(payload);
-      syncWithServer(payload);
-    }, 1200);
+      
+      clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => {
+        syncWithServer(payload);
+      }, 1500);
+    }, 300);
   }, [pages, order, loading, syncWithServer]);
 
   const page = pages[currentId];
