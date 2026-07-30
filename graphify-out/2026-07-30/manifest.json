@@ -1,0 +1,92 @@
+{
+  "package.json": {
+    "mtime": 1785430372.7619052,
+    "ast_hash": "276d605362b81d1e5cb8930a8b1812a4",
+    "semantic_hash": ""
+  },
+  "server/index.js": {
+    "mtime": 1784905834.8237698,
+    "ast_hash": "a3d45807a52f38bb7596deef8aa01a91",
+    "semantic_hash": "a3d45807a52f38bb7596deef8aa01a91"
+  },
+  "server/package.json": {
+    "mtime": 1784905824.61495,
+    "ast_hash": "dc09c4ef687902e0e0c1127faea9a556",
+    "semantic_hash": "dc09c4ef687902e0e0c1127faea9a556"
+  },
+  "src/App.jsx": {
+    "mtime": 1785430386.9695234,
+    "ast_hash": "0822ef45e788a416779cca4556d3f076",
+    "semantic_hash": ""
+  },
+  "src/main.jsx": {
+    "mtime": 1784855186.0,
+    "ast_hash": "62e50ef54352ffdf626adb503bab8c44",
+    "semantic_hash": "62e50ef54352ffdf626adb503bab8c44"
+  },
+  "vite.config.js": {
+    "mtime": 1784908940.5820246,
+    "ast_hash": "c6709052b485d484a96a4c46248f7e6a",
+    "semantic_hash": "c6709052b485d484a96a4c46248f7e6a"
+  },
+  "src/Auth.jsx": {
+    "mtime": 1785430320.630088,
+    "ast_hash": "c1fdba367d1e8ca187cf3550460c40ba",
+    "semantic_hash": ""
+  },
+  "src/supabase.js": {
+    "mtime": 1785430293.5444508,
+    "ast_hash": "8917369a3a44fbdf7b3bf369429d09c7",
+    "semantic_hash": ""
+  },
+  ".agents/rules/graphify.md": {
+    "mtime": 1785272853.7248056,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": ""
+  },
+  ".agents/workflows/graphify.md": {
+    "mtime": 1785272853.725398,
+    "ast_hash": "637776aa6f7496d069afe7520c845c8a",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1784856806.0,
+    "ast_hash": "47e40f557bdb59071bedfb0a6403d333",
+    "semantic_hash": ""
+  },
+  "docker-compose.yml": {
+    "mtime": 1784907557.7971375,
+    "ast_hash": "37b5ab92a27ea136a7b5054729bc2809",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1784855182.0,
+    "ast_hash": "332d7f14b9bd89ce21000c33d4f164ff",
+    "semantic_hash": ""
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1784838402.533295,
+    "ast_hash": "b742abf2d03aa9d79c3290767176eb41",
+    "semantic_hash": ""
+  },
+  "public/apple-touch-icon.png": {
+    "mtime": 1784855296.0,
+    "ast_hash": "f4cc5bdbba05c40d4274acab2b21dfd6",
+    "semantic_hash": ""
+  },
+  "public/favicon.svg": {
+    "mtime": 1784855296.0,
+    "ast_hash": "d094e82a0849339c7d33b4d84e1db36a",
+    "semantic_hash": ""
+  },
+  "public/icon-192.png": {
+    "mtime": 1784855296.0,
+    "ast_hash": "12effe1a2cab38e194da73ae54cd36c7",
+    "semantic_hash": ""
+  },
+  "public/icon-512.png": {
+    "mtime": 1784855296.0,
+    "ast_hash": "669c87f73a1fb75f7ec644ea63f372de",
+    "semantic_hash": ""
+  }
+}

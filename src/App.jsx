@@ -5,6 +5,8 @@ import {
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell,
 } from "lucide-react";
+import { supabase } from "./supabase";
+import Auth from "./Auth";
 
 /* ------------------------------------------------------------------ *
  *  Espacio — páginas, notas, pendientes y calendario.
@@ -69,51 +71,109 @@ export default function App() {
   const [notifOn, setNotifOn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState("synced"); // "synced", "syncing", "offline"
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  /* --- control de sesión Supabase --- */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem(KEY);
+    setPages({});
+    setOrder([]);
+    setCurrentId(null);
+  };
 
   /* --- cliente de sincronización --- */
-  const syncWithServer = useCallback(async (localData) => {
-    if (!localData || !localData.order?.length) return;
+  const syncWithServer = useCallback(async (localData, currentUser) => {
+    const activeUser = currentUser || user;
+    if (!activeUser) return;
     setSyncStatus("syncing");
     try {
-      const res = await fetch("/api/sync");
-      if (!res.ok) throw new Error("HTTP error " + res.status);
-      const serverData = await res.json();
+      const { data: serverData, error } = await supabase
+        .from("user_workspaces")
+        .select("pages, order, updated_at")
+        .eq("user_id", activeUser.id)
+        .maybeSingle();
 
-      // Caso 1: Servidor no tiene datos guardados todavía
-      if (!serverData.updatedAt) {
-        const uploadRes = await fetch("/api/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(localData),
-        });
-        if (!uploadRes.ok) throw new Error("Upload error");
+      if (error) throw error;
+
+      // Caso 1: El servidor no tiene datos guardados todavía
+      if (!serverData) {
+        const payloadToUpload = localData || (() => {
+          const seed = seedWorkspace();
+          const t = new Date().toISOString();
+          return { ...seed, updatedAt: t };
+        })();
+
+        const { error: insertError } = await supabase
+          .from("user_workspaces")
+          .insert({
+            user_id: activeUser.id,
+            pages: payloadToUpload.pages,
+            order: payloadToUpload.order,
+            updated_at: payloadToUpload.updatedAt || new Date().toISOString()
+          });
+
+        if (insertError) throw insertError;
+        
+        if (!localData) {
+          setPages(payloadToUpload.pages);
+          setOrder(payloadToUpload.order);
+          setCurrentId(payloadToUpload.order[0]);
+          store.save(payloadToUpload);
+        }
         setSyncStatus("synced");
+        setLoading(false);
         return;
       }
 
-      const localTime = new Date(localData.updatedAt || 0).getTime();
-      const serverTime = new Date(serverData.updatedAt || 0).getTime();
+      const localTime = new Date(localData?.updatedAt || 0).getTime();
+      const serverTime = new Date(serverData.updated_at || 0).getTime();
 
       // Caso 2: El servidor tiene datos más recientes
       if (serverTime > localTime) {
         if (serverData.pages && serverData.order && serverData.order.length > 0) {
+          const newPayload = {
+            pages: serverData.pages,
+            order: serverData.order,
+            updatedAt: serverData.updated_at
+          };
           setPages(serverData.pages);
           setOrder(serverData.order);
-          try { localStorage.setItem(KEY, JSON.stringify(serverData)); } catch {}
+          setCurrentId(serverData.order[0]);
+          try { localStorage.setItem(KEY, JSON.stringify(newPayload)); } catch {}
           setSyncStatus("synced");
         } else {
-          console.warn("El servidor retornó datos de sincronización vacíos o corruptos, ignorando sobreescritura.");
+          console.warn("El servidor retornó datos de sincronización vacíos o corruptos, ignorando.");
           setSyncStatus("offline");
         }
       }
       // Caso 3: El cliente tiene datos más recientes (cambios locales offline)
-      else if (localTime > serverTime) {
-        const uploadRes = await fetch("/api/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(localData),
-        });
-        if (!uploadRes.ok) throw new Error("Upload error");
+      else if (localTime > serverTime && localData) {
+        const { error: updateError } = await supabase
+          .from("user_workspaces")
+          .upsert({
+            user_id: activeUser.id,
+            pages: localData.pages,
+            order: localData.order,
+            updated_at: localData.updatedAt
+          });
+
+        if (updateError) throw updateError;
         setSyncStatus("synced");
       }
       // Caso 4: Están iguales
@@ -123,26 +183,31 @@ export default function App() {
     } catch (err) {
       console.warn("Sincronización fallida:", err);
       setSyncStatus("offline");
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   /* --- carga de contenido --- */
   useEffect(() => {
-    const data = store.load();
-    let initialData = data;
-    if (data && data.order?.length) {
-      setPages(data.pages); setOrder(data.order); setCurrentId(data.order[0]);
-    } else {
-      const seed = seedWorkspace();
-      const t = new Date().toISOString();
-      const seedWithTime = { ...seed, updatedAt: t };
-      setPages(seedWithTime.pages); setOrder(seedWithTime.order); setCurrentId(seedWithTime.order[0]);
-      store.save(seedWithTime);
-      initialData = seedWithTime;
+    if (authLoading) return;
+    if (!user) {
+      setPages({});
+      setOrder([]);
+      setCurrentId(null);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
-    syncWithServer(initialData);
-  }, [syncWithServer]);
+
+    setLoading(true);
+    const localData = store.load();
+    if (localData && localData.order?.length) {
+      setPages(localData.pages);
+      setOrder(localData.order);
+      setCurrentId(localData.order[0]);
+    }
+    syncWithServer(localData, user);
+  }, [user, authLoading, syncWithServer]);
 
   /* --- carga de ajustes --- */
   useEffect(() => {
@@ -164,7 +229,7 @@ export default function App() {
   const saveTimer = useRef();
   const syncTimer = useRef();
   useEffect(() => {
-    if (loading) return;
+    if (loading || authLoading || !user) return;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const t = new Date().toISOString();
@@ -173,10 +238,10 @@ export default function App() {
       
       clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => {
-        syncWithServer(payload);
+        syncWithServer(payload, user);
       }, 1500);
     }, 300);
-  }, [pages, order, loading, syncWithServer]);
+  }, [pages, order, loading, authLoading, user, syncWithServer]);
 
   const page = pages[currentId];
 
@@ -331,9 +396,24 @@ export default function App() {
 
   const selectPage = (id) => { setCurrentId(id); setView("docs"); if (window.innerWidth < 768) setSidebarOpen(false); };
 
+  if (authLoading) {
+    return (
+      <div className="flex h-full items-center justify-center" style={{ background: T.bg }}>
+        <div className="text-sm" style={{ color: T.muted }}>Comprobando sesión…</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth onLoginSuccess={(u) => setUser(u)} />;
+  }
+
   if (loading) {
-    return <div className="flex h-full items-center justify-center" style={{ background: T.bg }}>
-      <div className="text-sm" style={{ color: T.muted }}>Abriendo tu espacio…</div></div>;
+    return (
+      <div className="flex h-full items-center justify-center" style={{ background: T.bg }}>
+        <div className="text-sm" style={{ color: T.muted }}>Abriendo tu espacio…</div>
+      </div>
+    );
   }
 
   const NavBtn = ({ id, icon: Icon, label }) => (
@@ -441,14 +521,15 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsModal theme={theme} setTheme={setTheme} notifOn={notifOn} enableNotifs={enableNotifs}
-                       onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)} />
+                       onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
+                       user={user} onLogout={handleLogout} />
       )}
     </div>
   );
 }
 
 /* ================= Ajustes ================= */
-function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose }) {
+function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout }) {
   const fileRef = useRef(null);
   const themeBtn = (val, Icon, label) => (
     <button onClick={() => setTheme(val)} className="flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]"
@@ -480,6 +561,16 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
               <Bell size={15} /> Activar recordatorios
             </button>
           )}
+        </section>
+
+        <section className="mb-4">
+          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Cuenta</p>
+          <div className="flex items-center justify-between gap-2 rounded-lg border p-3 text-[13px]" style={{ borderColor: T.border }}>
+            <span className="truncate font-medium text-[var(--ink)]" title={user?.email}>{user?.email}</span>
+            <button onClick={onLogout} className="rounded px-2.5 py-1 text-[11px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]" style={{ background: T.danger }}>
+              Cerrar sesión
+            </button>
+          </div>
         </section>
 
         <section>
@@ -1067,6 +1158,7 @@ const TYPE_STYLE = {
 const T = {
   bg: "var(--bg)", sidebar: "var(--sidebar)", ink: "var(--ink)", muted: "var(--muted)",
   border: "var(--border)", accent: "var(--accent)", accentSoft: "var(--accent-soft)",
+  danger: "var(--danger)",
 };
 
 function seedWorkspace() {
