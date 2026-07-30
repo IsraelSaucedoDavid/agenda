@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "Espacio",
-        short_name: "Espacio",
-        description: "Tu espacio de trabajo: páginas, notas y pendientes.",
+        name: "Órbita",
+        short_name: "Órbita",
+        description: "Tu órbita de trabajo: páginas, notas y pendientes.",
         theme_color: "#0E7C66",
         background_color: "#FAFAF7",
         display: "standalone",

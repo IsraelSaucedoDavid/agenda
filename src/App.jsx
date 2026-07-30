@@ -9,18 +9,29 @@ import { supabase } from "./supabase";
 import Auth from "./Auth";
 
 /* ------------------------------------------------------------------ *
- *  Espacio — páginas, notas, pendientes y calendario.
+ *  Órbita — páginas, notas, pendientes y calendario.
  *  Guarda en este dispositivo (localStorage). Tema claro/oscuro,
  *  recordatorios y respaldo export/import.
  * ------------------------------------------------------------------ */
 
-const KEY = "espacio:v2";
-const SETTINGS_KEY = "espacio:settings";
+const KEY = "orbita:v2";
+const SETTINGS_KEY = "orbita:settings";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const store = {
-  load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch { return null; } },
-  save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* sin espacio */ } },
+  load(userId) { 
+    try { 
+      const key = userId ? `${KEY}:${userId}` : KEY;
+      const r = localStorage.getItem(key); 
+      return r ? JSON.parse(r) : null; 
+    } catch { return null; } 
+  },
+  save(d, userId) { 
+    try { 
+      const key = userId ? `${KEY}:${userId}` : KEY;
+      localStorage.setItem(key, JSON.stringify(d)); 
+    } catch { /* sin espacio */ } 
+  },
 };
 
 /* ---- utilidades de fecha (cadenas YYYY-MM-DD en hora local) ---- */
@@ -90,7 +101,11 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
+    const userId = user?.id;
     await supabase.auth.signOut();
+    if (userId) {
+      localStorage.removeItem(`${KEY}:${userId}`);
+    }
     localStorage.removeItem(KEY);
     setPages({});
     setOrder([]);
@@ -134,7 +149,7 @@ export default function App() {
           setPages(payloadToUpload.pages);
           setOrder(payloadToUpload.order);
           setCurrentId(payloadToUpload.order[0]);
-          store.save(payloadToUpload);
+          store.save(payloadToUpload, activeUser.id);
         }
         setSyncStatus("synced");
         setLoading(false);
@@ -155,7 +170,7 @@ export default function App() {
           setPages(serverData.pages);
           setOrder(serverData.order);
           setCurrentId(serverData.order[0]);
-          try { localStorage.setItem(KEY, JSON.stringify(newPayload)); } catch {}
+          store.save(newPayload, activeUser.id);
           setSyncStatus("synced");
         } else {
           console.warn("El servidor retornó datos de sincronización vacíos o corruptos, ignorando.");
@@ -200,7 +215,7 @@ export default function App() {
     }
 
     setLoading(true);
-    const localData = store.load();
+    const localData = store.load(user.id);
     if (localData && localData.order?.length) {
       setPages(localData.pages);
       setOrder(localData.order);
@@ -234,7 +249,7 @@ export default function App() {
     saveTimer.current = setTimeout(() => {
       const t = new Date().toISOString();
       const payload = { pages, order, updatedAt: t };
-      store.save(payload);
+      store.save(payload, user.id);
       
       clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => {
@@ -367,7 +382,7 @@ export default function App() {
     const blob = new Blob([JSON.stringify({ pages, order, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `espacio-respaldo-${todayStr()}.json`; a.click();
+    a.href = url; a.download = `orbita-respaldo-${todayStr()}.json`; a.click();
     URL.revokeObjectURL(url);
   };
   const importData = (file) => {
@@ -380,7 +395,7 @@ export default function App() {
         setPages(data.pages); setOrder(data.order); setCurrentId(data.order[0] || null);
         setSettingsOpen(false);
         alert("Respaldo importado con éxito.");
-      } catch { alert("El archivo no es un respaldo válido de Espacio."); }
+      } catch { alert("El archivo no es un respaldo válido de Órbita."); }
     };
     reader.readAsText(file);
   };
@@ -411,7 +426,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center" style={{ background: T.bg }}>
-        <div className="text-sm" style={{ color: T.muted }}>Abriendo tu espacio…</div>
+        <div className="text-sm" style={{ color: T.muted }}>Abriendo tu órbita…</div>
       </div>
     );
   }
@@ -432,8 +447,8 @@ export default function App() {
         <aside className="fixed z-30 flex h-full w-64 flex-shrink-0 flex-col border-r md:static" style={{ background: T.sidebar, borderColor: T.border }}>
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <div className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-md text-xs font-bold text-white" style={{ background: T.accent }}>E</span>
-              <span className="font-serif text-[15px] font-semibold tracking-tight">Espacio</span>
+              <span className="grid h-6 w-6 place-items-center rounded-md text-xs font-bold text-white" style={{ background: T.accent }}>Ó</span>
+              <span className="font-serif text-[15px] font-semibold tracking-tight">Órbita</span>
               <div className="flex items-center ml-1" title={
                 syncStatus === "synced" ? "Sincronizado con el servidor" : 
                 syncStatus === "syncing" ? "Sincronizando..." : 
@@ -511,7 +526,7 @@ export default function App() {
           <div className="grid flex-1 place-items-center px-6 text-center">
             <div>
               <div className="mb-3 text-4xl">🗂️</div>
-              <p className="mb-1 font-serif text-lg">Tu espacio está vacío</p>
+              <p className="mb-1 font-serif text-lg">Tu órbita está vacía</p>
               <p className="mb-4 text-sm" style={{ color: T.muted }}>Crea tu primera página para empezar.</p>
               <button onClick={() => addPage(null)} className="rounded-md px-4 py-2 text-sm font-medium text-white transition" style={{ background: T.accent }}>Crear página</button>
             </div>
@@ -1165,9 +1180,9 @@ function seedWorkspace() {
   const t = todayStr();
   const home = newPage(null); home.icon = "🏠"; home.title = "Inicio";
   home.blocks = [
-    { ...emptyBlock("callout"), text: "Tu espacio: páginas + calendario. Ponle fecha a un pendiente con el 📅 y aparece en Calendario y Agenda. Activa recordatorios y tema oscuro en Ajustes." },
+    { ...emptyBlock("callout"), text: "Tu órbita: páginas + calendario. Ponle fecha a un pendiente con el 📅 y aparece en Calendario y Agenda. Activa recordatorios y tema oscuro en Ajustes." },
     { ...emptyBlock("h2"), text: "Pendientes" },
-    { ...emptyBlock("todo"), text: "Instalar el espacio en mi celular", date: t },
+    { ...emptyBlock("todo"), text: "Instalar Órbita en mi celular", date: t },
     { ...emptyBlock("todo"), text: "Compartir la idea con mi socio", date: addDays(t, 1) },
     { ...emptyBlock("todo"), text: "Definir cómo lo alojamos gratis", date: addDays(t, 3), time: "10:00" },
     { ...emptyBlock("text"), text: "" },

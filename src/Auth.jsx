@@ -11,14 +11,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const MicrosoftIcon = () => (
-  <svg className="h-4.5 w-4.5 mr-2" viewBox="0 0 23 23" fill="currentColor">
-    <rect x="0" y="0" width="10.5" height="10.5" fill="#F25022" />
-    <rect x="11.5" y="0" width="10.5" height="10.5" fill="#7FBA00" />
-    <rect x="0" y="11.5" width="10.5" height="10.5" fill="#00A4EF" />
-    <rect x="11.5" y="11.5" width="10.5" height="10.5" fill="#FFB900" />
-  </svg>
-);
+
 
 export default function Auth({ onLoginSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -100,7 +93,7 @@ export default function Auth({ onLoginSuccess }) {
             <Sparkles size={24} />
           </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-[var(--ink)]">
-            {isSignUp ? "Crea tu espacio" : "Bienvenido a Espacio"}
+            {isSignUp ? "Crea tu espacio" : "Bienvenido a Órbita"}
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             {isSignUp
@@ -190,7 +183,6 @@ export default function Auth({ onLoginSuccess }) {
           </div>
         </div>
 
-        {/* Botones de OAuth */}
         <div className="space-y-2.5 mb-6">
           <button
             type="button"
@@ -200,15 +192,6 @@ export default function Auth({ onLoginSuccess }) {
           >
             <GoogleIcon />
             {isSignUp ? "Registrarse con Google" : "Continuar con Google"}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => handleOAuthLogin("azure")}
-            className="hov flex w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--card)] py-2.5 text-sm font-semibold text-[var(--ink)] shadow-sm outline-none transition duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
-          >
-            <MicrosoftIcon />
-            {isSignUp ? "Registrarse con Microsoft" : "Continuar con Microsoft"}
           </button>
         </div>
 
