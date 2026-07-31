@@ -319,6 +319,21 @@ export default function App() {
       }
       // Caso 3: El cliente tiene datos más recientes (cambios locales offline)
       else if (localTime > serverTime && localData) {
+        // SEGURIDAD: Si el cliente está vacío (cero páginas y orden vacío) pero el servidor
+        // tiene páginas guardadas, se trata de una inicialización accidental / caché limpia.
+        // ¡NO debemos sobrescribir ni borrar los datos del servidor!
+        const localPagesCount = Object.keys(localData.pages || {}).length;
+        const serverPagesCount = Object.keys(serverData.pages || {}).length;
+        
+        if (localPagesCount === 0 && serverPagesCount > 0) {
+          console.warn("Sincronización: Se previno sobrescribir el servidor con un cliente vacío.");
+          setPages(serverData.pages);
+          setOrder(serverData.order || []);
+          store.save({ pages: serverData.pages, order: serverData.order || [], updatedAt: serverData.updated_at }, activeUser.id);
+          setSyncStatus("synced");
+          return;
+        }
+
         const { error: updateError } = await supabase
           .from("user_workspaces")
           .upsert({
@@ -519,6 +534,14 @@ export default function App() {
                 };
               } else {
                 pagesToDelete.push(sp.page_id);
+                // Si la página ya no existe en el workspace del dueño, eliminamos el registro huérfano de la BD
+                if (supabase) {
+                  try {
+                    await supabase.from("page_shares").delete().eq("id", sp.id);
+                  } catch (delErr) {
+                    console.warn("No se pudo eliminar el registro huérfano de page_shares:", delErr);
+                  }
+                }
               }
             } catch (wsErr) {
               console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
