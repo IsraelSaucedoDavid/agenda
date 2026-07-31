@@ -478,6 +478,8 @@ export default function App() {
                 ownerPageDeletedAt: ownerPage?.deletedAt,
                 shareStatus: sp.status,
                 isAccepted: isAccepted,
+                ownerAllPageKeys: Object.keys(wsData?.pages || {}),
+                ownerAllPageTitles: Object.values(wsData?.pages || {}).map(p => p.title),
                 wsError 
               });
 
