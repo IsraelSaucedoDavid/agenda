@@ -103,7 +103,11 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
-  const [sharedPages, setSharedPages] = useState([]);
+  const [sharedPages, setSharedPages] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("orbita:shared_pages") || "[]");
+    } catch { return []; }
+  });
   const [sharedByMe, setSharedByMe] = useState([]);  // páginas que yo compartí con otros
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [newTicketAlert, setNewTicketAlert] = useState(null);
@@ -128,6 +132,10 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem("orbita:accepted_shares", JSON.stringify(acceptedShares)); } catch { /* ignore */ }
   }, [acceptedShares]);
+
+  useEffect(() => {
+    try { localStorage.setItem("orbita:shared_pages", JSON.stringify(sharedPages)); } catch { /* ignore */ }
+  }, [sharedPages]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -353,7 +361,7 @@ export default function App() {
     lastUserId.current = user.id;
     setLoading(true);
     const localData = store.load(user.id);
-    if (localData && localData.order?.length) {
+    if (localData && localData.pages) {
       // Auto-purga: eliminar definitivamente páginas en papelera con más de 30 días
       const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
       const now = Date.now();
@@ -362,10 +370,10 @@ export default function App() {
           !pg.deletedAt || (now - new Date(pg.deletedAt).getTime()) < THIRTY_DAYS_MS
         )
       );
-      const purgedOrder = localData.order.filter(id => purgedPages[id]);
+      const purgedOrder = (localData.order || []).filter(id => purgedPages[id]);
       setPages(purgedPages);
       setOrder(purgedOrder);
-      setCurrentId(id => id && purgedOrder.includes(id) ? id : getInitialPageId(purgedOrder));
+      setCurrentId(id => id && (purgedOrder.includes(id) || purgedPages[id]?.isSharedWithMe) ? id : getInitialPageId(purgedOrder));
     }
     syncWithServer(localData, user);
   }, [user, authLoading, syncWithServer]);
@@ -437,79 +445,83 @@ export default function App() {
 
       if (!error && shares) {
         const activeShares = [];
+        const pageUpdates = {};
+        const pagesToDelete = [];
+        const newNotifs = [];
 
-        // Cargar el contenido de las páginas compartidas desde el workspace del propietario
-        for (const sp of shares) {
-          try {
-            const { data: wsData } = await supabase
-              .from("user_workspaces")
-              .select("pages")
-              .eq("user_id", sp.owner_id)
-              .maybeSingle();
+        // Consultar workspaces de los propietarios en paralelo usando Promise.all
+        await Promise.all(
+          shares.map(async (sp) => {
+            try {
+              const { data: wsData } = await supabase
+                .from("user_workspaces")
+                .select("pages")
+                .eq("user_id", sp.owner_id)
+                .maybeSingle();
 
-            if (wsData?.pages && wsData.pages[sp.page_id]) {
-              const ownerPage = wsData.pages[sp.page_id];
+              if (wsData?.pages && wsData.pages[sp.page_id]) {
+                const ownerPage = wsData.pages[sp.page_id];
 
-              // Si la página fue eliminada por el propietario (deletedAt), omitirla
-              if (ownerPage.deletedAt) {
-                setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
-                continue;
-              }
+                if (ownerPage.deletedAt) {
+                  pagesToDelete.push(sp.page_id);
+                  return;
+                }
 
-              // Verificar si la invitación ha sido ACEPTADA
-              // Si status es 'accepted', si status es nulo/desconocido (fallback) o si el id está aceptado localmente
-              const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
+                const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
 
-              if (!isAccepted) {
-                // Si está explícitamente PENDIENTE y no aceptada aún, mostrar notificación
-                setNotifications(prev => {
-                  if (prev.some(n => n.shareId === sp.id)) return prev;
-                  return [
-                    {
-                      id: `invite:${sp.id}`,
-                      type: "page_invite",
-                      shareId: sp.id,
-                      pageId: sp.page_id,
-                      pageTitle: ownerPage.title || "Sin título",
-                      ownerEmail: sp.owner_email || "Un usuario",
-                      ownerId: sp.owner_id,
-                      permission: sp.permission || "view",
-                      title: "📩 ¡Nueva invitación a colaborar!",
-                      body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
-                      status: "pending",
-                      read: false,
-                      createdAt: sp.created_at || new Date().toISOString()
-                    },
-                    ...prev
-                  ];
-                });
-                continue;
-              }
+                if (!isAccepted) {
+                  newNotifs.push({
+                    id: `invite:${sp.id}`,
+                    type: "page_invite",
+                    shareId: sp.id,
+                    pageId: sp.page_id,
+                    pageTitle: ownerPage.title || "Sin título",
+                    ownerEmail: sp.owner_email || "Un usuario",
+                    ownerId: sp.owner_id,
+                    permission: sp.permission || "view",
+                    title: "📩 ¡Nueva invitación a colaborar!",
+                    body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
+                    status: "pending",
+                    read: false,
+                    createdAt: sp.created_at || new Date().toISOString()
+                  });
+                  return;
+                }
 
-              // Solo si está ACEPTADA se incluye en las páginas activas
-              activeShares.push(sp);
-              setPages(p => ({
-                ...p,
-                [sp.page_id]: {
+                activeShares.push(sp);
+                pageUpdates[sp.page_id] = {
                   ...ownerPage,
-                  // Quitar parentId para que la sub-página aparezca como entrada
-                  // independiente en la sección "Compartidas conmigo"
                   parentId: undefined,
                   isShared: true,
                   isSharedWithMe: true,
                   ownerId: sp.owner_id,
                   permission: sp.permission
-                }
-              }));
-            } else {
-              // Si la página ya no existe en el workspace del propietario, limpiarla
-              setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
+                };
+              } else {
+                pagesToDelete.push(sp.page_id);
+              }
+            } catch (wsErr) {
+              console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
             }
-          } catch (wsErr) {
-            console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
-          }
-        }
+          })
+        );
 
+        if (pagesToDelete.length > 0) {
+          setPages(p => {
+            const next = { ...p };
+            pagesToDelete.forEach(id => delete next[id]);
+            return next;
+          });
+        }
+        if (Object.keys(pageUpdates).length > 0) {
+          setPages(p => ({ ...p, ...pageUpdates }));
+        }
+        if (newNotifs.length > 0) {
+          setNotifications(prev => {
+            const filtered = newNotifs.filter(n => !prev.some(x => x.shareId === n.shareId));
+            return [...filtered, ...prev];
+          });
+        }
         setSharedPages(activeShares);
       }
     } catch (err) {
@@ -692,18 +704,23 @@ export default function App() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const t = new Date().toISOString();
-      // Filtrar las páginas compartidas-conmigo antes de guardar para que no
-      // contaminen el workspace propio del usuario en Supabase / localStorage
+      
+      // Guardar TODO en localStorage (incluyendo páginas compartidas) para que carguen
+      // de forma instantánea al refrescar la app.
+      const payloadLocal = { pages, order, updatedAt: t };
+      store.save(payloadLocal, user.id);
+      
+      // Filtrar las páginas compartidas-conmigo antes de subir a Supabase para que no
+      // contaminen el workspace del usuario en el servidor.
       const ownPages = Object.fromEntries(
         Object.entries(pages).filter(([, pg]) => !pg.isSharedWithMe)
       );
       const ownOrder = order.filter(id => !pages[id]?.isSharedWithMe);
-      const payload = { pages: ownPages, order: ownOrder, updatedAt: t };
-      store.save(payload, user.id);
+      const payloadSync = { pages: ownPages, order: ownOrder, updatedAt: t };
       
       clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => {
-        syncWithServer(payload, user);
+        syncWithServer(payloadSync, user);
       }, 1500);
     }, 300);
   }, [pages, order, loading, authLoading, user, syncWithServer]);
