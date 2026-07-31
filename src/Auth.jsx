@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "./supabase";
-import { Mail, Lock, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Sparkles, Loader2, AlertCircle, X } from "lucide-react";
 
 const GoogleIcon = () => (
   <svg className="h-4.5 w-4.5 mr-2" viewBox="0 0 24 24" fill="currentColor">
@@ -20,6 +20,9 @@ export default function Auth({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleOAuthLogin = async (provider) => {
     setLoading(true);
@@ -45,11 +48,22 @@ export default function Auth({ onLoginSuccess }) {
     setError(null);
     setMessage(null);
 
+    if (isSignUp && !acceptedTerms) {
+      setError("Debes aceptar los Términos de Servicio y las Normas de Convivencia para continuar.");
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              accepted_terms: true
+            }
+          }
         });
         if (error) throw error;
         
@@ -157,6 +171,39 @@ export default function Auth({ onLoginSuccess }) {
             </div>
           </div>
 
+          {/* Aceptar Términos y Condiciones */}
+          {isSignUp && (
+            <div className="flex items-start gap-2.5 text-left select-none my-3">
+              <input
+                id="accept-terms-checkbox"
+                type="checkbox"
+                required
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-[var(--border)] bg-[var(--bg)] cursor-pointer accent-[var(--accent)]"
+              />
+              <label htmlFor="accept-terms-checkbox" className="text-xs text-[var(--muted)] cursor-pointer leading-relaxed">
+                Acepto los{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(true)}
+                  className="text-[var(--accent)] font-semibold hover:underline bg-transparent border-none p-0 inline align-baseline outline-none"
+                >
+                  Términos de Servicio
+                </button>{" "}
+                y las{" "}
+                <button
+                  type="button"
+                  onClick={() => setShowRules(true)}
+                  className="text-[var(--accent)] font-semibold hover:underline bg-transparent border-none p-0 inline align-baseline outline-none"
+                >
+                  Normas de Convivencia
+                </button>{" "}
+                de Órbita.
+              </label>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -208,7 +255,52 @@ export default function Auth({ onLoginSuccess }) {
             ? "¿Ya tienes una cuenta? Inicia sesión"
             : "¿No tienes una cuenta? Regístrate gratis"}
         </button>
+
+        {/* Enlaces a Políticas y Normas */}
+        <div className="mt-6 flex justify-center gap-4 text-[11px] text-[var(--muted)] border-t border-[var(--border)] pt-4">
+          <button onClick={() => setShowTerms(true)} type="button" className="hover:text-[var(--accent)] transition">Términos de Servicio</button>
+          <span>•</span>
+          <button onClick={() => setShowRules(true)} type="button" className="hover:text-[var(--accent)] transition">Normas de Convivencia</button>
+        </div>
       </div>
+
+      {/* Modal de Términos de Servicio */}
+      {showTerms && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setShowTerms(false)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-md rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150" style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--ink)" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-serif text-lg font-bold">Términos de Servicio</h2>
+              <button onClick={() => setShowTerms(false)} className="hov rounded p-1"><X size={16} style={{ color: "var(--muted)" }} /></button>
+            </div>
+            <div className="max-h-60 overflow-y-auto pr-1 text-xs space-y-3 leading-relaxed" style={{ color: "var(--ink)" }}>
+              <p><strong>1. Aceptación de los Términos:</strong> Al registrarte y utilizar Órbita, aceptas cumplir de forma incondicional con estos términos de servicio.</p>
+              <p><strong>2. Uso del Servicio:</strong> Órbita es un espacio personal para organizar páginas, calendarios y pendientes. Te comprometes a usar la plataforma únicamente para fines lícitos y no comerciales.</p>
+              <p><strong>3. Privacidad y Seguridad:</strong> Tus datos se almacenan en un servidor seguro y de forma local en tu navegador. Eres responsable de mantener la confidencialidad de tus credenciales de inicio de sesión.</p>
+              <p><strong>4. Suspensión del Servicio:</strong> Nos reservamos el derecho de suspender o cancelar cuentas de forma temporal o permanente en caso de que se detecten conductas fraudulentas o infracciones a las normas de convivencia.</p>
+            </div>
+            <button onClick={() => setShowTerms(false)} className="mt-6 w-full rounded-lg py-2.5 text-xs font-semibold text-white shadow-md transition duration-200 hover:brightness-105 active:scale-[0.98]" style={{ background: "var(--accent)" }}>Entendido</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Normas de Convivencia */}
+      {showRules && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setShowRules(false)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-md rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150" style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--ink)" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-serif text-lg font-bold">Normas de Convivencia</h2>
+              <button onClick={() => setShowRules(false)} className="hov rounded p-1"><X size={16} style={{ color: "var(--muted)" }} /></button>
+            </div>
+            <div className="max-h-60 overflow-y-auto pr-1 text-xs space-y-3 leading-relaxed" style={{ color: "var(--ink)" }}>
+              <p><strong>1. Respeto y Tolerancia:</strong> Queda estrictamente prohibido el envío de reportes, tickets o mensajes abusivos, ofensivos, obscenos o amenazantes a través de las herramientas de soporte.</p>
+              <p><strong>2. Prohibición de Spam:</strong> No utilices el formulario de soporte ni los campos de la aplicación para hacer publicidad, spam, propagación de malware o enlaces a sitios sospechosos.</p>
+              <p><strong>3. Uso Legítimo:</strong> No intentes vulnerar el sistema de base de datos ni manipular el almacenamiento para acceder a perfiles ajenos o alterar el servicio.</p>
+              <p><strong>4. Moderación:</strong> Los administradores monitorizan de forma activa los tickets y perfiles. El incumplimiento de cualquiera de estas normas es motivo directo de suspensión de la cuenta.</p>
+            </div>
+            <button onClick={() => setShowRules(false)} className="mt-6 w-full rounded-lg py-2.5 text-xs font-semibold text-white shadow-md transition duration-200 hover:brightness-105 active:scale-[0.98]" style={{ background: "var(--accent)" }}>Entendido</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
