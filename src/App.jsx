@@ -242,7 +242,12 @@ export default function App() {
 
       if (error) throw error;
 
-      console.log("DEBUG: serverData fetched from Supabase:", serverData);
+      console.log("DEBUG: serverData fetched from Supabase:", {
+        pagesKeys: Object.keys(serverData?.pages || {}),
+        pagesTitles: Object.values(serverData?.pages || {}).map(p => p.title),
+        order: serverData?.order,
+        updated_at: serverData?.updated_at
+      });
 
       // Caso 1: El servidor no tiene datos guardados todavía
       if (!serverData) {
