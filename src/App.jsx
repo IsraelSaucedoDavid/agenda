@@ -462,11 +462,13 @@ export default function App() {
         await Promise.all(
           shares.map(async (sp) => {
             try {
-              const { data: wsData } = await supabase
+              const { data: wsData, error: wsError } = await supabase
                 .from("user_workspaces")
                 .select("pages")
                 .eq("user_id", sp.owner_id)
                 .maybeSingle();
+
+              console.log(`DEBUG: Owner workspace query for ${sp.owner_id} (Page: ${sp.page_id}):`, { wsData, wsError });
 
               if (wsData?.pages && wsData.pages[sp.page_id]) {
                 const ownerPage = wsData.pages[sp.page_id];
