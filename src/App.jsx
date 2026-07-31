@@ -104,6 +104,7 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
   const [sharedPages, setSharedPages] = useState([]);
+  const [sharedByMe, setSharedByMe] = useState([]);  // páginas que yo compartí con otros
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [newTicketAlert, setNewTicketAlert] = useState(null);
   const [toast, setToast] = useState(null); // { text, type: "success" | "error" }
@@ -576,6 +577,31 @@ export default function App() {
       notifChannel.unsubscribe();
     };
   }, [user, fetchSharedPages]);
+
+  /* --- cargar páginas compartidas POR el usuario actual --- */
+  useEffect(() => {
+    if (!user || !supabase) { setSharedByMe([]); return; }
+    const fetchSharedByMe = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("page_shares")
+          .select("page_id, shared_with_email, permission, status")
+          .eq("owner_id", user.id);
+        if (!error && data) {
+          // Agrupar por page_id: { page_id, recipients: [{email, permission}] }
+          const grouped = {};
+          for (const row of data) {
+            if (!grouped[row.page_id]) grouped[row.page_id] = { page_id: row.page_id, recipients: [] };
+            grouped[row.page_id].recipients.push({ email: row.shared_with_email, permission: row.permission });
+          }
+          setSharedByMe(Object.values(grouped));
+        }
+      } catch (err) {
+        console.warn("Error al cargar compartidos por mi:", err);
+      }
+    };
+    fetchSharedByMe();
+  }, [user]);
   useEffect(() => {
     if (profile?.role !== "admin") {
       setOpenTicketsCount(0);
@@ -1118,7 +1144,7 @@ export default function App() {
             ) : (
               <Tree roots={roots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
                     selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage}
-                    deletePage={softDeletePage} sharedPages={sharedPages} setConfirmDialog={setConfirmDialog} />
+                    deletePage={softDeletePage} sharedPages={sharedPages} sharedByMe={sharedByMe} setConfirmDialog={setConfirmDialog} />
             )}
           </nav>
 
@@ -1548,7 +1574,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
 }
 
 /* ================= Árbol lateral ================= */
-function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, setConfirmDialog }) {
+function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, sharedByMe, setConfirmDialog }) {
   const render = (id, depth) => {
     const pg = pages[id]; if (!pg) return null;
     const kids = childrenOf(id); const open = expanded[id];
@@ -1593,6 +1619,33 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
             return (
               <PageRow key={sp.id} pg={pg} depth={0} active={sp.page_id === currentId && view === "docs"}
                        hasKids={false} open={false} onClick={() => selectPage(sp.page_id)} />
+            );
+          })}
+        </div>
+      )}
+
+      {/* Sección Compartidos por ti */}
+      {sharedByMe && sharedByMe.length > 0 && (
+        <div className="mt-4 border-t pt-3" style={{ borderColor: T.border }}>
+          <p className="px-2 mb-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: T.muted }}>
+            <Share2 size={12} /> Compartidos por ti
+          </p>
+          {sharedByMe.map(entry => {
+            const pg = pages[entry.page_id];
+            if (!pg || pg.deletedAt) return null;
+            return (
+              <div key={entry.page_id}>
+                <PageRow pg={pg} depth={0} active={entry.page_id === currentId && view === "docs"}
+                         hasKids={false} open={false} onClick={() => selectPage(entry.page_id)} />
+                <div className="ml-5 mb-1 flex flex-wrap gap-1">
+                  {entry.recipients.map((r, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
+                          style={{ background: T.accentSoft, color: T.accent }}>
+                      <Users size={9} />{r.email}
+                    </span>
+                  ))}
+                </div>
+              </div>
             );
           })}
         </div>
