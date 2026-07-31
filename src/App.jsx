@@ -389,7 +389,11 @@ export default function App() {
     fetchActiveAnnouncement();
   }, [user]);
 
-  /* --- carga de páginas compartidas --- */
+  /* --- carga de páginas compartidas ---
+   * IMPORTANTE: usar siempre fetchSharedPagesRef.current() en callbacks
+   * para evitar stale closures cuando acceptedShares cambia antes del re-render
+   */
+  const fetchSharedPagesRef = useRef(null);
   const fetchSharedPages = useCallback(async () => {
     if (!user || !supabase) {
       setSharedPages([]);
@@ -439,6 +443,8 @@ export default function App() {
                       pageId: sp.page_id,
                       pageTitle: ownerPage.title || "Sin título",
                       ownerEmail: sp.owner_email || "Un usuario",
+                      ownerId: sp.owner_id,
+                      permission: sp.permission || "view",
                       title: "📩 ¡Nueva invitación a colaborar!",
                       body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
                       status: "pending",
@@ -482,6 +488,9 @@ export default function App() {
     }
   }, [user, acceptedShares]);
 
+  // Mantener el ref siempre apuntando a la función más reciente (evita stale closures)
+  useEffect(() => { fetchSharedPagesRef.current = fetchSharedPages; }, [fetchSharedPages]);
+
   /* --- escucha de notificaciones en tiempo real --- */
   useEffect(() => {
     fetchSharedPages();
@@ -502,6 +511,8 @@ export default function App() {
             pageId: payload.pageId,
             pageTitle: payload.pageTitle,
             ownerEmail: payload.ownerEmail,
+            ownerId: payload.ownerId,
+            permission: payload.permission,
             title: "📩 ¡Nueva invitación a colaborar!",
             body: `${payload.ownerEmail} te invitó a colaborar en "${payload.pageTitle || "Sin título"}"`,
             status: "pending",
@@ -1254,11 +1265,43 @@ export default function App() {
                                showToast("¡Invitación aceptada!");
                                setNotifPanelOpen(false);
 
-                               // Refrescar páginas compartidas para cargar la nueva página aceptada
+                               // Cargar la página aceptada de inmediato en el estado local
+                               // SIN depender de fetchSharedPages (evita stale closure de acceptedShares)
+                               if (n.pageId && n.ownerEmail && supabase) {
+                                 try {
+                                   // Obtener workspace del propietario para leer los datos de la página
+                                   const { data: wsData } = await supabase
+                                     .from("workspaces")
+                                     .select("pages")
+                                     .eq("user_id", n.ownerId || null)
+                                     .single();
+                                   const ownerPage = wsData?.pages?.[n.pageId];
+                                   if (ownerPage) {
+                                     setPages(p => ({
+                                       ...p,
+                                       [n.pageId]: {
+                                         ...ownerPage,
+                                         parentId: undefined,
+                                         isShared: true,
+                                         isSharedWithMe: true,
+                                         ownerId: n.ownerId,
+                                         permission: n.permission || "view"
+                                       }
+                                     }));
+                                     setSharedPages(prev => {
+                                       const already = prev.find(s => s.page_id === n.pageId);
+                                       if (already) return prev;
+                                       return [...prev, { id: n.shareId, page_id: n.pageId, owner_id: n.ownerId, permission: n.permission || "view" }];
+                                     });
+                                   }
+                                 } catch { /* fallback al refresh normal */ }
+                               }
+
+                               // Refrescar via ref para tener siempre la versión más reciente
                                setTimeout(() => {
-                                 fetchSharedPages();
+                                 if (fetchSharedPagesRef.current) fetchSharedPagesRef.current();
                                  if (n.pageId) selectPage(n.pageId);
-                               }, 100);
+                               }, 200);
 
                                // Notificar al propietario
                                if (supabase && n.ownerEmail) {
@@ -2419,6 +2462,7 @@ function ShareModal({ page, user, onClose, showToast }) {
                   pageId: page.id,
                   pageTitle: page.title || "Sin título",
                   ownerEmail: user.email,
+                  ownerId: user.id,
                   permission
                 }
               });
