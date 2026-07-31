@@ -242,6 +242,8 @@ export default function App() {
 
       if (error) throw error;
 
+      console.log("DEBUG: serverData fetched from Supabase:", serverData);
+
       // Caso 1: El servidor no tiene datos guardados todavía
       if (!serverData) {
         const payloadToUpload = localData || (() => {
