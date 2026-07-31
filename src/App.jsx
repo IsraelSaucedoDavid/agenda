@@ -108,6 +108,18 @@ export default function App() {
   const [newTicketAlert, setNewTicketAlert] = useState(null);
   const [toast, setToast] = useState(null); // { text, type: "success" | "error" }
   const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, onConfirm }
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("orbita:notifications") || "[]");
+    } catch { return []; }
+  });
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem("orbita:notifications", JSON.stringify(notifications)); } catch { /* ignore */ }
+  }, [notifications]);
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
   const showToast = useCallback((text, type = "success") => {
     setToast({ text, type });
@@ -367,18 +379,19 @@ export default function App() {
     fetchActiveAnnouncement();
   }, [user]);
 
-  /* --- carga de páginas compartidas conmigo --- */
+  /* --- carga y escucha de notificaciones de páginas compartidas --- */
   useEffect(() => {
     if (!user || !supabase) {
       setSharedPages([]);
       return;
     }
+    const userEmail = user.email?.toLowerCase();
     const fetchSharedPages = async () => {
       try {
         const { data: shares, error } = await supabase
           .from("page_shares")
           .select("*")
-          .eq("shared_with_email", user.email?.toLowerCase());
+          .eq("shared_with_email", userEmail);
 
         if (!error && shares && shares.length > 0) {
           setSharedPages(shares);
@@ -402,6 +415,23 @@ export default function App() {
                     permission: sp.permission
                   }
                 }));
+
+                // Generar notificación local si es nueva
+                setNotifications(prev => {
+                  if (prev.some(n => n.id === `share:${sp.id}`)) return prev;
+                  return [
+                    {
+                      id: `share:${sp.id}`,
+                      type: "page_shared",
+                      title: "¡Página compartida contigo!",
+                      body: `Te compartieron la página "${ownerPage.title || "Sin título"}"`,
+                      pageId: sp.page_id,
+                      read: false,
+                      createdAt: sp.created_at || new Date().toISOString()
+                    },
+                    ...prev
+                  ];
+                });
               }
             } catch (wsErr) {
               console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
@@ -412,7 +442,44 @@ export default function App() {
         console.error("Error al cargar invitaciones compartidas:", err);
       }
     };
+
     fetchSharedPages();
+
+    // Escuchar notificaciones en tiempo real para este usuario
+    const notifChannel = supabase.channel(`user_notifs:${userEmail}`);
+    notifChannel
+      .on("broadcast", { event: "new_shared_page" }, ({ payload }) => {
+        const notifId = `realtime:${payload.pageId}:${Date.now()}`;
+        setNotifications(prev => [
+          {
+            id: notifId,
+            type: "page_shared",
+            title: "👥 ¡Nueva página compartida!",
+            body: `${payload.ownerEmail} te compartió "${payload.title || "Sin título"}"`,
+            pageId: payload.pageId,
+            read: false,
+            createdAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        // Notificación del sistema Web Push / Navegador
+        if ("Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification("👥 Página compartida en Órbita", {
+              body: `${payload.ownerEmail} te compartió "${payload.title || "Sin título"}"`,
+              icon: "/icon-192.png"
+            });
+          } catch { /* ignore */ }
+        }
+
+        fetchSharedPages();
+      })
+      .subscribe();
+
+    return () => {
+      notifChannel.unsubscribe();
+    };
   }, [user]);
   useEffect(() => {
     if (profile?.role !== "admin") {
@@ -868,7 +935,18 @@ export default function App() {
                 )}
               </div>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="hov rounded p-1"><PanelLeftClose size={16} style={{ color: T.muted }} /></button>
+            <div className="flex items-center gap-1">
+              {/* Botón Campanita de Notificaciones 🔔 */}
+              <button onClick={() => setNotifPanelOpen(o => !o)} title="Notificaciones" className="relative hov rounded p-1 cursor-pointer">
+                <Bell size={16} style={{ color: T.muted }} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[var(--danger,#ef4444)] px-1 text-[8px] font-bold text-white animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              <button onClick={() => setSidebarOpen(false)} className="hov rounded p-1"><PanelLeftClose size={16} style={{ color: T.muted }} /></button>
+            </div>
           </div>
 
           <div className="flex gap-1 px-3 pb-2">
@@ -978,6 +1056,18 @@ export default function App() {
         <SettingsModal theme={theme} setTheme={setTheme} notifOn={notifOn} enableNotifs={enableNotifs}
                        onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
                        user={user} onLogout={handleLogout} />
+      )}
+
+      {/* Panel desplegable de Notificaciones 🔔 */}
+      {notifPanelOpen && (
+        <NotificationPanel notifications={notifications} setNotifications={setNotifications}
+                           onSelectNotif={(pageId) => {
+                             if (pageId) {
+                               selectPage(pageId);
+                             }
+                             setNotifPanelOpen(false);
+                           }}
+                           onClose={() => setNotifPanelOpen(false)} />
       )}
 
       {/* Notificaciones Toast flotantes globales */}
@@ -1936,6 +2026,25 @@ function ShareModal({ page, user, onClose, showToast }) {
             });
           if (insertErr) throw insertErr;
         }
+
+        // Transmitir notificación en tiempo real al destinatario
+        try {
+          const notifChan = supabase.channel(`user_notifs:${targetEmail}`);
+          notifChan.subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+              await notifChan.send({
+                type: "broadcast",
+                event: "new_shared_page",
+                payload: {
+                  title: page.title || "Sin título",
+                  ownerEmail: user.email,
+                  pageId: page.id
+                }
+              });
+              setTimeout(() => notifChan.unsubscribe(), 1000);
+            }
+          });
+        } catch { /* ignore */ }
       }
 
       if (showToast) showToast(`Invitación enviada a ${email}`);
@@ -2043,6 +2152,82 @@ function ShareModal({ page, user, onClose, showToast }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================= Panel Desplegable de Notificaciones ================= */
+function NotificationPanel({ notifications, setNotifications, onSelectNotif, onClose }) {
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearAll = () => {
+    setNotifications([]);
+  };
+
+  const handleNotifClick = (n) => {
+    setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+    if (n.pageId) {
+      onSelectNotif(n.pageId);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-start justify-start p-4 bg-black/20" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()}
+           className="mt-14 ml-0 md:ml-64 w-80 max-w-full rounded-2xl border p-4 shadow-2xl animate-in slide-in-from-top-4 duration-200 text-left"
+           style={{ background: T.sidebar, borderColor: T.border, color: T.ink }}>
+        <div className="mb-3 flex items-center justify-between border-b pb-2.5" style={{ borderColor: T.border }}>
+          <div className="flex items-center gap-2">
+            <Bell size={16} className="text-[var(--accent)]" />
+            <h3 className="font-serif text-sm font-bold">Notificaciones</h3>
+          </div>
+          <div className="flex items-center gap-1">
+            {notifications.some(n => !n.read) && (
+              <button onClick={markAllAsRead} title="Marcar leídas" className="text-[10px] font-semibold text-[var(--accent)] hover:underline mr-1 cursor-pointer">
+                Leídas
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button onClick={clearAll} title="Limpiar todo" className="text-[10px] font-semibold text-[var(--muted)] hover:underline mr-1 cursor-pointer">
+                Limpiar
+              </button>
+            )}
+            <button onClick={onClose} className="hov rounded p-1"><X size={14} style={{ color: T.muted }} /></button>
+          </div>
+        </div>
+
+        {notifications.length === 0 ? (
+          <div className="py-8 text-center" style={{ color: T.muted }}>
+            <span className="text-2xl mb-1 block">🔔</span>
+            <p className="text-xs font-medium">Sin notificaciones pendientes</p>
+            <p className="text-[10px] mt-0.5">Aquí verás los avisos cuando te compartan contenido.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {notifications.map(n => (
+              <div key={n.id} onClick={() => handleNotifClick(n)}
+                   className={`group flex items-start gap-2.5 rounded-xl border p-2.5 text-xs transition cursor-pointer hover:shadow-sm ${!n.read ? "bg-[var(--accent-soft)]" : "bg-[var(--card)]"}`}
+                   style={{ borderColor: !n.read ? T.accent : T.border }}>
+                <div className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                  <Share2 size={12} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <p className="font-semibold truncate text-[12px]" style={{ color: T.ink }}>{n.title}</p>
+                    {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />}
+                  </div>
+                  <p className="text-[11px] leading-tight" style={{ color: T.muted }}>{n.body}</p>
+                  <span className="mt-1 block text-[9px] opacity-70" style={{ color: T.muted }}>
+                    {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
