@@ -388,95 +388,99 @@ export default function App() {
     fetchActiveAnnouncement();
   }, [user]);
 
-  /* --- carga y escucha de notificaciones de páginas compartidas --- */
-  useEffect(() => {
+  /* --- carga de páginas compartidas --- */
+  const fetchSharedPages = useCallback(async () => {
     if (!user || !supabase) {
       setSharedPages([]);
       return;
     }
     const userEmail = user.email?.toLowerCase();
-    const fetchSharedPages = async () => {
-      try {
-        const { data: shares, error } = await supabase
-          .from("page_shares")
-          .select("*")
-          .eq("shared_with_email", userEmail);
+    try {
+      const { data: shares, error } = await supabase
+        .from("page_shares")
+        .select("*")
+        .eq("shared_with_email", userEmail);
 
-        if (!error && shares) {
-          const activeShares = [];
+      if (!error && shares) {
+        const activeShares = [];
 
-          // Cargar el contenido de las páginas compartidas desde el workspace del propietario
-          for (const sp of shares) {
-            try {
-              const { data: wsData } = await supabase
-                .from("user_workspaces")
-                .select("pages")
-                .eq("user_id", sp.owner_id)
-                .maybeSingle();
+        // Cargar el contenido de las páginas compartidas desde el workspace del propietario
+        for (const sp of shares) {
+          try {
+            const { data: wsData } = await supabase
+              .from("user_workspaces")
+              .select("pages")
+              .eq("user_id", sp.owner_id)
+              .maybeSingle();
 
-              if (wsData?.pages && wsData.pages[sp.page_id]) {
-                const ownerPage = wsData.pages[sp.page_id];
+            if (wsData?.pages && wsData.pages[sp.page_id]) {
+              const ownerPage = wsData.pages[sp.page_id];
 
-                // Si la página fue eliminada por el propietario (deletedAt), omitirla
-                if (ownerPage.deletedAt) {
-                  setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
-                  continue;
-                }
-
-                // Verificar si la invitación ha sido ACEPTADA
-                const isAccepted = sp.status === "accepted" || acceptedShares.includes(sp.id);
-
-                if (!isAccepted) {
-                  // Si aún está PENDIENTE de aprobación, NO agregarla a la barra lateral ni abrirla
-                  setNotifications(prev => {
-                    if (prev.some(n => n.shareId === sp.id)) return prev;
-                    return [
-                      {
-                        id: `invite:${sp.id}`,
-                        type: "page_invite",
-                        shareId: sp.id,
-                        pageId: sp.page_id,
-                        pageTitle: ownerPage.title || "Sin título",
-                        ownerEmail: sp.owner_email || "Un usuario",
-                        title: "📩 ¡Nueva invitación a colaborar!",
-                        body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
-                        status: "pending",
-                        read: false,
-                        createdAt: sp.created_at || new Date().toISOString()
-                      },
-                      ...prev
-                    ];
-                  });
-                  continue;
-                }
-
-                // Solo si está ACEPTADA se incluye en las páginas activas
-                activeShares.push(sp);
-                setPages(p => ({
-                  ...p,
-                  [sp.page_id]: {
-                    ...ownerPage,
-                    isShared: true,
-                    permission: sp.permission
-                  }
-                }));
-              } else {
-                // Si la página ya no existe en el workspace del propietario, limpiarla
+              // Si la página fue eliminada por el propietario (deletedAt), omitirla
+              if (ownerPage.deletedAt) {
                 setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
+                continue;
               }
-            } catch (wsErr) {
-              console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
+
+              // Verificar si la invitación ha sido ACEPTADA
+              const isAccepted = sp.status === "accepted" || acceptedShares.includes(sp.id);
+
+              if (!isAccepted) {
+                // Si aún está PENDIENTE de aprobación, NO agregarla a la barra lateral ni abrirla
+                setNotifications(prev => {
+                  if (prev.some(n => n.shareId === sp.id)) return prev;
+                  return [
+                    {
+                      id: `invite:${sp.id}`,
+                      type: "page_invite",
+                      shareId: sp.id,
+                      pageId: sp.page_id,
+                      pageTitle: ownerPage.title || "Sin título",
+                      ownerEmail: sp.owner_email || "Un usuario",
+                      title: "📩 ¡Nueva invitación a colaborar!",
+                      body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
+                      status: "pending",
+                      read: false,
+                      createdAt: sp.created_at || new Date().toISOString()
+                    },
+                    ...prev
+                  ];
+                });
+                continue;
+              }
+
+              // Solo si está ACEPTADA se incluye en las páginas activas
+              activeShares.push(sp);
+              setPages(p => ({
+                ...p,
+                [sp.page_id]: {
+                  ...ownerPage,
+                  isShared: true,
+                  permission: sp.permission
+                }
+              }));
+            } else {
+              // Si la página ya no existe en el workspace del propietario, limpiarla
+              setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
             }
+          } catch (wsErr) {
+            console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
           }
-
-          setSharedPages(activeShares);
         }
-      } catch (err) {
-        console.error("Error al cargar invitaciones compartidas:", err);
-      }
-    };
 
+        setSharedPages(activeShares);
+      }
+    } catch (err) {
+      console.error("Error al cargar invitaciones compartidas:", err);
+    }
+  }, [user, acceptedShares]);
+
+  /* --- escucha de notificaciones en tiempo real --- */
+  useEffect(() => {
     fetchSharedPages();
+
+    if (!user || !supabase) return;
+    const userEmail = user.email?.toLowerCase();
 
     // Escuchar notificaciones en tiempo real para este usuario
     const notifChannel = supabase.channel(`user_notifs:${userEmail}`);
@@ -565,7 +569,7 @@ export default function App() {
     return () => {
       notifChannel.unsubscribe();
     };
-  }, [user]);
+  }, [user, fetchSharedPages]);
   useEffect(() => {
     if (profile?.role !== "admin") {
       setOpenTicketsCount(0);
