@@ -375,16 +375,41 @@ export default function App() {
     }
     const fetchSharedPages = async () => {
       try {
-        const { data, error } = await supabase
+        const { data: shares, error } = await supabase
           .from("page_shares")
           .select("*")
           .eq("shared_with_email", user.email?.toLowerCase());
 
-        if (!error && data) {
-          setSharedPages(data);
+        if (!error && shares && shares.length > 0) {
+          setSharedPages(shares);
+
+          // Cargar el contenido de las páginas compartidas desde el workspace del propietario
+          for (const sp of shares) {
+            try {
+              const { data: wsData } = await supabase
+                .from("user_workspaces")
+                .select("pages")
+                .eq("user_id", sp.owner_id)
+                .maybeSingle();
+
+              if (wsData?.pages && wsData.pages[sp.page_id]) {
+                const ownerPage = wsData.pages[sp.page_id];
+                setPages(p => ({
+                  ...p,
+                  [sp.page_id]: {
+                    ...ownerPage,
+                    isShared: true,
+                    permission: sp.permission
+                  }
+                }));
+              }
+            } catch (wsErr) {
+              console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
+            }
+          }
         }
-      } catch {
-        /* Fallback silencioso si aún no existe la tabla */
+      } catch (err) {
+        console.error("Error al cargar invitaciones compartidas:", err);
       }
     };
     fetchSharedPages();
@@ -1709,6 +1734,25 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
           updateBlockInPage(page.id, payload.blockId, payload.patch);
         }
       })
+      .on("broadcast", { event: "page_update" }, ({ payload }) => {
+        if (payload.userId !== user.id && payload.page) {
+          updatePage(page.id, payload.page);
+        }
+      })
+      .on("broadcast", { event: "request_page_sync" }, ({ payload }) => {
+        if (payload.requesterId !== user.id && page) {
+          channel.send({
+            type: "broadcast",
+            event: "page_sync_data",
+            payload: { page, userId: user.id }
+          });
+        }
+      })
+      .on("broadcast", { event: "page_sync_data" }, ({ payload }) => {
+        if (payload.userId !== user.id && payload.page) {
+          updatePage(page.id, payload.page);
+        }
+      })
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         const usersList = [];
@@ -1726,6 +1770,13 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
             email: user.email,
             onlineAt: new Date().toISOString()
           });
+
+          // Solicitar sync al entrar a la página
+          channel.send({
+            type: "broadcast",
+            event: "request_page_sync",
+            payload: { requesterId: user.id }
+          });
         }
       });
 
@@ -1733,7 +1784,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
       channel.unsubscribe();
       channelRef.current = null;
     };
-  }, [page?.id, user, updateBlockInPage]);
+  }, [page?.id, user, updateBlockInPage, updatePage]);
 
   const insertAfter = (id, block) => {
     const i = page.blocks.findIndex(b => b.id === id);
