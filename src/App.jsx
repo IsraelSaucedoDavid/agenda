@@ -465,9 +465,6 @@ export default function App() {
                   permission: sp.permission
                 }
               }));
-              // Asegurar que el ID esté en el orden del usuario invitado
-              // (no se guardará en Supabase; solo es estado local en memoria)
-              setOrder(prev => prev.includes(sp.page_id) ? prev : [...prev, sp.page_id]);
             } else {
               // Si la página ya no existe en el workspace del propietario, limpiarla
               setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
@@ -816,9 +813,9 @@ export default function App() {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  // Excluye páginas en papelera de la barra lateral y árbol
-  const childrenOf = useCallback((pid) => order.filter(id => pages[id]?.parentId === pid && !pages[id]?.deletedAt), [order, pages]);
-  const roots = order.filter(id => !pages[id]?.parentId && !pages[id]?.deletedAt);
+  // Excluye páginas en papelera, hijos y páginas ajenas (compartidas-conmigo) de la barra lateral principal
+  const childrenOf = useCallback((pid) => order.filter(id => pages[id]?.parentId === pid && !pages[id]?.deletedAt && !pages[id]?.isSharedWithMe), [order, pages]);
+  const roots = order.filter(id => !pages[id]?.parentId && !pages[id]?.deletedAt && !pages[id]?.isSharedWithMe);
 
   // Contador de páginas en la papelera (solo raíces, no hijos)
   const trashedPages = useMemo(() => order.filter(id => pages[id]?.deletedAt && !pages[id]?.parentId), [order, pages]);
