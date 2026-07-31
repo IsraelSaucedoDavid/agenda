@@ -393,8 +393,22 @@ export default function App() {
           .select("*")
           .eq("shared_with_email", userEmail);
 
-        if (!error && shares && shares.length > 0) {
+        if (!error && shares) {
           setSharedPages(shares);
+          const validSharedIds = new Set(shares.map(s => s.page_id));
+
+          // Limpiar de la memoria local cualquier página compartida cuyo acceso fue revocado
+          setPages(prev => {
+            const next = { ...prev };
+            let cleaned = false;
+            Object.keys(next).forEach(pid => {
+              if (next[pid]?.isShared && !validSharedIds.has(pid)) {
+                delete next[pid];
+                cleaned = true;
+              }
+            });
+            return cleaned ? next : prev;
+          });
 
           // Cargar el contenido de las páginas compartidas desde el workspace del propietario
           for (const sp of shares) {
@@ -473,6 +487,18 @@ export default function App() {
           } catch { /* ignore */ }
         }
 
+        fetchSharedPages();
+      })
+      .on("broadcast", { event: "page_access_revoked" }, ({ payload }) => {
+        const revokedPageId = payload.pageId;
+        setSharedPages(prev => prev.filter(sp => sp.page_id !== revokedPageId));
+        setPages(prev => {
+          const next = { ...prev };
+          delete next[revokedPageId];
+          return next;
+        });
+        setCurrentId(cur => (cur === revokedPageId ? null : cur));
+        showToast(`Se ha revocado tu acceso a "${payload.pageTitle || "la página compartida"}"`, "error");
         fetchSharedPages();
       })
       .subscribe();
@@ -614,7 +640,7 @@ export default function App() {
   };
 
   // --- Eliminar permanentemente una página y sus hijos ---
-  const permanentDelete = (id) => {
+  const permanentDelete = async (id) => {
     const toRemove = new Set([id]);
     let changed = true;
     while (changed) {
@@ -623,6 +649,12 @@ export default function App() {
         const pg = pages[pid];
         if (pg && pg.parentId && toRemove.has(pg.parentId) && !toRemove.has(pid)) { toRemove.add(pid); changed = true; }
       }
+    }
+    // Eliminar registros de invitación en Supabase
+    if (supabase) {
+      try {
+        await supabase.from("page_shares").delete().in("page_id", Array.from(toRemove));
+      } catch { /* ignore */ }
     }
     setPages(p => { const next = { ...p }; toRemove.forEach(x => delete next[x]); return next; });
     setOrder(o => {
@@ -2080,6 +2112,22 @@ function ShareModal({ page, user, onClose, showToast }) {
     try {
       if (supabase && shareId) {
         await supabase.from("page_shares").delete().eq("id", shareId);
+
+        // Notificar en tiempo real al usuario desvinculado
+        try {
+          const targetEmail = shareEmail.toLowerCase();
+          const notifChan = supabase.channel(`user_notifs:${targetEmail}`);
+          notifChan.subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+              await notifChan.send({
+                type: "broadcast",
+                event: "page_access_revoked",
+                payload: { pageId: page.id, pageTitle: page.title || "Sin título" }
+              });
+              setTimeout(() => notifChan.unsubscribe(), 1000);
+            }
+          });
+        } catch { /* ignore */ }
       }
       setShares(s => s.filter(item => item.id !== shareId));
       if (showToast) showToast(`Acceso revocado a ${shareEmail}`);
