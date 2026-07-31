@@ -4,6 +4,8 @@ import {
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell,
+  AlertCircle, Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square,
+  Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw, Link2
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -52,16 +54,19 @@ const chipLabel = (date, time) => {
 const EMOJIS = ["📄","📝","✅","💡","🎯","📊","💰","🚀","📅","🔥","⭐","📌","🗂️","🧠","🛠️","☕"];
 
 const BLOCK_MENU = [
-  { type: "text",    label: "Texto",     hint: "Escribe en plano",    icon: Type },
-  { type: "h1",      label: "Título 1",   hint: "Encabezado grande",   icon: Heading1 },
-  { type: "h2",      label: "Título 2",   hint: "Encabezado mediano",  icon: Heading2 },
-  { type: "h3",      label: "Título 3",   hint: "Encabezado chico",    icon: Heading3 },
-  { type: "todo",    label: "Pendiente",  hint: "Casilla con fecha",   icon: CheckSquare },
-  { type: "bullet",  label: "Lista",      hint: "Lista con viñetas",   icon: List },
-  { type: "number",  label: "Lista num.", hint: "Lista numerada",      icon: ListOrdered },
-  { type: "quote",   label: "Cita",       hint: "Bloque destacado",    icon: Quote },
-  { type: "callout", label: "Nota",       hint: "Aviso con recuadro",  icon: MessageSquare },
-  { type: "divider", label: "Separador",  hint: "Línea divisoria",     icon: Minus },
+  { type: "text",    label: "Texto",         hint: "Escribe en plano",      icon: Type },
+  { type: "h1",      label: "Título 1",       hint: "Encabezado grande",     icon: Heading1 },
+  { type: "h2",      label: "Título 2",       hint: "Encabezado mediano",    icon: Heading2 },
+  { type: "h3",      label: "Título 3",       hint: "Encabezado chico",      icon: Heading3 },
+  { type: "todo",    label: "Pendiente",      hint: "Casilla con fecha",     icon: CheckSquare },
+  { type: "bullet",  label: "Lista",          hint: "Lista con viñetas",     icon: List },
+  { type: "number",  label: "Lista num.",     hint: "Lista numerada",        icon: ListOrdered },
+  { type: "quote",   label: "Cita",           hint: "Bloque destacado",      icon: Quote },
+  { type: "callout", label: "Nota",           hint: "Aviso con recuadro",    icon: MessageSquare },
+  { type: "divider", label: "Separador",      hint: "Línea divisoria",       icon: Minus },
+  { type: "image",   label: "Imagen",         hint: "Foto o cámara",         icon: Image },
+  { type: "audio",   label: "Nota de voz",    hint: "Graba audio",           icon: Mic },
+  { type: "link",    label: "Enlace web",     hint: "YouTube, Spotify...",   icon: Link2 },
 ];
 
 const emptyBlock = (type = "text") => ({ id: uid(), type, text: "", checked: false, date: null, time: null, completedAt: null });
