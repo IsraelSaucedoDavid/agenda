@@ -275,9 +275,26 @@ export default function App() {
             order: serverData.order,
             updatedAt: serverData.updated_at
           };
-          setPages(serverData.pages);
+          // Preservar páginas compartidas-conmigo: syncWithServer solo trae las páginas
+          // propias del usuario desde Supabase, por lo que si sobreescribimos `pages`
+          // sin fusionar las compartidas, se borran del estado local y el editor
+          // queda en blanco hasta el siguiente fetchSharedPages.
+          setPages(prev => {
+            const sharedEntries = Object.fromEntries(
+              Object.entries(prev).filter(([, pg]) => pg?.isSharedWithMe)
+            );
+            return { ...serverData.pages, ...sharedEntries };
+          });
           setOrder(serverData.order);
-          setCurrentId(id => id && serverData.order.includes(id) ? id : getInitialPageId(serverData.order));
+          // No cambiar currentId si apunta a una página compartida (no está en serverData.order)
+          setCurrentId(id => {
+            if (!id) return getInitialPageId(serverData.order);
+            if (serverData.order.includes(id)) return id;
+            // Si el currentId es una página compartida-conmigo, mantenerlo
+            const currentPg = serverData.pages[id];
+            if (!currentPg) return id; // página compartida, mantener
+            return getInitialPageId(serverData.order);
+          });
           store.save(newPayload, activeUser.id);
           setSyncStatus("synced");
         } else {
