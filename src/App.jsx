@@ -1935,8 +1935,12 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
           <button onClick={() => setShareOpen(true)} className="hov flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold text-[var(--accent)] bg-[var(--accent-soft)] transition cursor-pointer">
             <Share2 size={13} /> Compartir
           </button>
-          <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
-          <button onClick={() => { if (confirm("¿Borrar esta página?")) onDelete(); }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
+          {!page.isShared && (
+            <>
+              <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
+              <button onClick={() => { if (confirm("¿Borrar esta página?")) onDelete(); }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1969,6 +1973,8 @@ function ShareModal({ page, user, onClose, showToast }) {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
 
+  const isOwner = !page.isShared;
+
   const loadShares = useCallback(async () => {
     if (!supabase || !page?.id) {
       setLoading(false);
@@ -1996,6 +2002,10 @@ function ShareModal({ page, user, onClose, showToast }) {
 
   const handleInvite = async (e) => {
     e.preventDefault();
+    if (!isOwner) {
+      if (showToast) showToast("Solo el propietario de la página puede invitar a otros colaboradores.", "error");
+      return;
+    }
     if (!email.trim() || !page?.id || !user) return;
     setInviting(true);
 
@@ -2063,6 +2073,10 @@ function ShareModal({ page, user, onClose, showToast }) {
   };
 
   const handleRevoke = async (shareId, shareEmail) => {
+    if (!isOwner) {
+      if (showToast) showToast("Solo el propietario de la página puede revocar accesos.", "error");
+      return;
+    }
     try {
       if (supabase && shareId) {
         await supabase.from("page_shares").delete().eq("id", shareId);
@@ -2091,30 +2105,38 @@ function ShareModal({ page, user, onClose, showToast }) {
           <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
         </div>
 
-        {/* Formulario de Invitación */}
-        <form onSubmit={handleInvite} className="mb-5 space-y-3">
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: T.muted }}>
-              Correo del colaborador
-            </label>
-            <div className="flex gap-2">
-              <input type="email" required placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)}
-                     className="flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition"
-                     style={{ borderColor: T.border, background: T.bg, color: T.ink }} />
-              <select value={permission} onChange={e => setPermission(e.target.value)}
-                      className="rounded-xl border px-2 py-2 text-xs outline-none cursor-pointer"
-                      style={{ borderColor: T.border, background: T.bg, color: T.ink }}>
-                <option value="edit">Puede editar</option>
-                <option value="view">Solo ver</option>
-              </select>
+        {/* Mensaje de Privilegios para Colaboradores vs Propietarios */}
+        {isOwner ? (
+          /* Formulario de Invitación (Solo para Propietarios) */
+          <form onSubmit={handleInvite} className="mb-5 space-y-3">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: T.muted }}>
+                Correo del colaborador
+              </label>
+              <div className="flex gap-2">
+                <input type="email" required placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)}
+                       className="flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition"
+                       style={{ borderColor: T.border, background: T.bg, color: T.ink }} />
+                <select value={permission} onChange={e => setPermission(e.target.value)}
+                        className="rounded-xl border px-2 py-2 text-xs outline-none cursor-pointer"
+                        style={{ borderColor: T.border, background: T.bg, color: T.ink }}>
+                  <option value="edit">Puede editar</option>
+                  <option value="view">Solo ver</option>
+                </select>
+              </div>
             </div>
+            <button type="submit" disabled={inviting} className="w-full py-2.5 rounded-xl text-xs font-semibold text-white shadow transition flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-[0.98]"
+                    style={{ background: T.accent }}>
+              {inviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+              {inviting ? "Enviando..." : "Invitar colaborador"}
+            </button>
+          </form>
+        ) : (
+          <div className="mb-5 rounded-xl border p-3 text-xs bg-[var(--accent-soft)] text-[var(--accent)] flex items-center gap-2">
+            <Lock size={15} className="flex-shrink-0" />
+            <span>Página compartida contigo. Solo el propietario de esta página puede gestionar invitaciones o revocar permisos.</span>
           </div>
-          <button type="submit" disabled={inviting} className="w-full py-2.5 rounded-xl text-xs font-semibold text-white shadow transition flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-[0.98]"
-                  style={{ background: T.accent }}>
-            {inviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
-            {inviting ? "Enviando..." : "Invitar colaborador"}
-          </button>
-        </form>
+        )}
 
         {/* Lista de Colaboradores */}
         <div>
@@ -2124,7 +2146,7 @@ function ShareModal({ page, user, onClose, showToast }) {
             <div className="flex items-center justify-between rounded-xl border p-2.5 text-xs" style={{ borderColor: T.border, background: T.bg }}>
               <div className="flex items-center gap-2 min-w-0">
                 <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)] font-bold text-[10px]">P</span>
-                <span className="truncate font-medium">{user?.email}</span>
+                <span className="truncate font-medium">{isOwner ? user?.email : (page.ownerEmail || "Propietario")}</span>
               </div>
               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-neutral-100 dark:bg-neutral-800" style={{ color: T.muted }}>Propietario</span>
             </div>
@@ -2133,7 +2155,7 @@ function ShareModal({ page, user, onClose, showToast }) {
             {loading ? (
               <p className="text-[11px] py-2 text-center" style={{ color: T.muted }}>Cargando colaboradores...</p>
             ) : shares.length === 0 ? (
-              <p className="text-[11px] py-2 text-center" style={{ color: T.muted }}>Aún no has invitado a nadie a esta página.</p>
+              <p className="text-[11px] py-2 text-center" style={{ color: T.muted }}>Aún no hay colaboradores invitados.</p>
             ) : (
               shares.map(item => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl border p-2.5 text-xs" style={{ borderColor: T.border, background: T.bg }}>
@@ -2144,9 +2166,15 @@ function ShareModal({ page, user, onClose, showToast }) {
                       <p className="text-[9px]" style={{ color: T.muted }}>{item.permission === "edit" ? "Puede editar" : "Solo ver"}</p>
                     </div>
                   </div>
-                  <button onClick={() => handleRevoke(item.id, item.shared_with_email)} className="text-[10px] font-semibold text-[var(--danger,#ef4444)] hover:underline cursor-pointer">
-                    Revocar
-                  </button>
+                  {isOwner ? (
+                    <button onClick={() => handleRevoke(item.id, item.shared_with_email)} className="text-[10px] font-semibold text-[var(--danger,#ef4444)] hover:underline cursor-pointer">
+                      Revocar
+                    </button>
+                  ) : (
+                    <span className="text-[10px] font-medium" style={{ color: T.muted }}>
+                      {item.permission === "edit" ? "Edición" : "Lectura"}
+                    </span>
+                  )}
                 </div>
               ))
             )}
