@@ -456,6 +456,8 @@ export default function App() {
                 [sp.page_id]: {
                   ...ownerPage,
                   isShared: true,
+                  isSharedWithMe: true,
+                  ownerId: sp.owner_id,
                   permission: sp.permission
                 }
               }));
@@ -2118,6 +2120,8 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   const todos = page.blocks.filter(b => b.type === "todo");
   const doneCount = todos.filter(b => b.checked).length;
 
+  const isOwner = !page.isSharedWithMe && (!page.ownerId || page.ownerId === user?.id);
+
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-40 pt-14 sm:px-12">
       {/* Indicador de Usuarios Conectados en Tiempo Real */}
@@ -2163,7 +2167,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
           <button onClick={() => setShareOpen(true)} className="hov flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold text-[var(--accent)] bg-[var(--accent-soft)] transition cursor-pointer">
             <Share2 size={13} /> Compartir
           </button>
-          {!page.isShared && (
+          {isOwner && (
             <>
               <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
               <button onClick={() => {
@@ -2211,7 +2215,7 @@ function ShareModal({ page, user, onClose, showToast }) {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
 
-  const isOwner = !page.isShared;
+  const isOwner = !page.isSharedWithMe && (!page.ownerId || page.ownerId === user?.id);
 
   const loadShares = useCallback(async () => {
     if (!supabase || !page?.id) {
