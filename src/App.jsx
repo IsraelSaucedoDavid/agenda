@@ -1080,7 +1080,8 @@ export default function App() {
               </div>
             ) : (
               <Tree roots={roots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
-                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage} deletePage={softDeletePage} sharedPages={sharedPages} />
+                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage}
+                    deletePage={softDeletePage} sharedPages={sharedPages} setConfirmDialog={setConfirmDialog} />
             )}
           </nav>
 
@@ -1144,7 +1145,8 @@ export default function App() {
           <AdminDashboardView user={user} profile={profile} openTicketsCount={openTicketsCount} setOpenTicketsCount={setOpenTicketsCount} showToast={showToast} />
         ) : page ? (
           <Editor key={page.id} page={page} updatePage={updatePage} updateBlockInPage={updateBlockInPage}
-                  onAddSub={() => addPage(page.id)} onDelete={() => softDeletePage(page.id)} showToast={showToast} user={user} />
+                  onAddSub={() => addPage(page.id)} onDelete={() => softDeletePage(page.id)}
+                  setConfirmDialog={setConfirmDialog} showToast={showToast} user={user} />
         ) : (
           <div className="grid flex-1 place-items-center px-6 text-center">
             <div>
@@ -1496,7 +1498,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
 }
 
 /* ================= Árbol lateral ================= */
-function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages }) {
+function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, setConfirmDialog }) {
   const render = (id, depth) => {
     const pg = pages[id]; if (!pg) return null;
     const kids = childrenOf(id); const open = expanded[id];
@@ -1506,11 +1508,15 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
                  onToggle={() => setExpanded(e => ({ ...e, [id]: !e[id] }))} onClick={() => selectPage(id)}
                  onAddSub={() => addPage(id)}
                  onDelete={() => {
-                   setConfirmDialog({
-                     title: `¿Mover "${pg.title || "Sin título"}" a la papelera?`,
-                     message: "Esta página se moverá a la papelera por 30 días. Si estaba compartida con colaboradores, se cancelará su acceso.",
-                     onConfirm: () => deletePage(id)
-                   });
+                   if (setConfirmDialog) {
+                     setConfirmDialog({
+                       title: `¿Mover "${pg.title || "Sin título"}" a la papelera?`,
+                       message: "Esta página se moverá a la papelera por 30 días. Si estaba compartida con colaboradores, se cancelará su acceso.",
+                       onConfirm: () => deletePage(id)
+                     });
+                   } else {
+                     if (confirm(`¿Borrar "${pg.title || "Sin título"}"?`)) deletePage(id);
+                   }
                  }} />
         {open && kids.map(k => render(k, depth + 1))}
       </div>
@@ -1972,7 +1978,7 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
 }
 
 /* ================= Editor ================= */
-function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showToast, user }) {
+function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setConfirmDialog, showToast, user }) {
   const [focusId, setFocusId] = useState(null);
   const [pickIcon, setPickIcon] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -2123,11 +2129,15 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
             <>
               <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
               <button onClick={() => {
-                setConfirmDialog({
-                  title: `¿Mover "${page.title || "Sin título"}" a la papelera?`,
-                  message: "La página se moverá a la papelera durante 30 días. Si la tenías compartida, los colaboradores perderán el acceso.",
-                  onConfirm: onDelete
-                });
+                if (setConfirmDialog) {
+                  setConfirmDialog({
+                    title: `¿Mover "${page.title || "Sin título"}" a la papelera?`,
+                    message: "La página se moverá a la papelera durante 30 días. Si la tenías compartida, los colaboradores perderán el acceso.",
+                    onConfirm: onDelete
+                  });
+                } else {
+                  if (confirm("¿Mover esta página a la papelera?")) onDelete();
+                }
               }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
             </>
           )}
