@@ -1288,7 +1288,7 @@ export default function App() {
                                  try {
                                    // Obtener workspace del propietario para leer los datos de la página
                                    const { data: wsData } = await supabase
-                                     .from("workspaces")
+                                     .from("user_workspaces")
                                      .select("pages")
                                      .eq("user_id", n.ownerId || null)
                                      .single();
@@ -2259,7 +2259,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   const todos = page.blocks.filter(b => b.type === "todo");
   const doneCount = todos.filter(b => b.checked).length;
 
-  const isOwner = !page.isSharedWithMe && (!page.ownerId || page.ownerId === user?.id);
+  const isOwner = !page.isSharedWithMe || (page.ownerId && page.ownerId === user?.id);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-40 pt-14 sm:px-12">
@@ -2366,7 +2366,7 @@ function ShareModal({ page, user, onClose, showToast }) {
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
 
-  const isOwner = !page.isSharedWithMe && (!page.ownerId || page.ownerId === user?.id);
+  const isOwner = !page.isSharedWithMe || (page.ownerId && page.ownerId === user?.id);
 
   const loadShares = useCallback(async () => {
     if (!supabase || !page?.id) {
