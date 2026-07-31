@@ -3,9 +3,8 @@ import {
   Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
-  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell,
-  AlertCircle, Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square,
-  Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw, Link2
+  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle,
+  Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -51,22 +50,33 @@ const chipLabel = (date, time) => {
   return time ? `${base}, ${time}` : base;
 };
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 const EMOJIS = ["📄","📝","✅","💡","🎯","📊","💰","🚀","📅","🔥","⭐","📌","🗂️","🧠","🛠️","☕"];
 
 const BLOCK_MENU = [
-  { type: "text",    label: "Texto",         hint: "Escribe en plano",      icon: Type },
-  { type: "h1",      label: "Título 1",       hint: "Encabezado grande",     icon: Heading1 },
-  { type: "h2",      label: "Título 2",       hint: "Encabezado mediano",    icon: Heading2 },
-  { type: "h3",      label: "Título 3",       hint: "Encabezado chico",      icon: Heading3 },
-  { type: "todo",    label: "Pendiente",      hint: "Casilla con fecha",     icon: CheckSquare },
-  { type: "bullet",  label: "Lista",          hint: "Lista con viñetas",     icon: List },
-  { type: "number",  label: "Lista num.",     hint: "Lista numerada",        icon: ListOrdered },
-  { type: "quote",   label: "Cita",           hint: "Bloque destacado",      icon: Quote },
-  { type: "callout", label: "Nota",           hint: "Aviso con recuadro",    icon: MessageSquare },
-  { type: "divider", label: "Separador",      hint: "Línea divisoria",       icon: Minus },
-  { type: "image",   label: "Imagen",         hint: "Foto o cámara",         icon: Image },
-  { type: "audio",   label: "Nota de voz",    hint: "Graba audio",           icon: Mic },
-  { type: "link",    label: "Enlace web",     hint: "YouTube, Spotify...",   icon: Link2 },
+  { type: "text",    label: "Texto",     hint: "Escribe en plano",    icon: Type },
+  { type: "h1",      label: "Título 1",   hint: "Encabezado grande",   icon: Heading1 },
+  { type: "h2",      label: "Título 2",   hint: "Encabezado mediano",  icon: Heading2 },
+  { type: "h3",      label: "Título 3",   hint: "Encabezado chico",    icon: Heading3 },
+  { type: "todo",    label: "Pendiente",  hint: "Casilla con fecha",   icon: CheckSquare },
+  { type: "bullet",  label: "Lista",      hint: "Lista con viñetas",   icon: List },
+  { type: "number",  label: "Lista num.", hint: "Lista numerada",      icon: ListOrdered },
+  { type: "quote",   label: "Cita",       hint: "Bloque destacado",    icon: Quote },
+  { type: "callout", label: "Nota",       hint: "Aviso con recuadro",  icon: MessageSquare },
+  { type: "divider", label: "Separador",  hint: "Línea divisoria",     icon: Minus },
+  { type: "image",   label: "Imagen",     hint: "Sube o toma una foto", icon: Camera },
+  { type: "audio",   label: "Nota de voz", hint: "Graba una nota de audio", icon: Mic },
+  { type: "link",    label: "Enlace web", hint: "Inserta un enlace enriquecido", icon: Link },
 ];
 
 const emptyBlock = (type = "text") => ({ id: uid(), type, text: "", checked: false, date: null, time: null, completedAt: null });
@@ -77,8 +87,8 @@ const newPage = (parentId = null) => ({ id: uid(), title: "", icon: "📄", pare
 export default function App() {
   const [pages, setPages] = useState({});
   const [order, setOrder] = useState([]);
-  const [currentId, setCurrentId] = useState(null);
-  const [view, setView] = useState("docs");
+  const [currentId, setCurrentId] = useState(() => localStorage.getItem("orbita:last_active_page") || null);
+  const [view, setView] = useState(() => localStorage.getItem("orbita:last_active_view") || "docs");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
@@ -89,6 +99,36 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState("synced"); // "synced", "syncing", "offline"
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [announcement, setAnnouncement] = useState(null);
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
+  const [newTicketAlert, setNewTicketAlert] = useState(null);
+  const [toast, setToast] = useState(null); // { text, type: "success" | "error" }
+  const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, onConfirm }
+
+  const showToast = useCallback((text, type = "success") => {
+    setToast({ text, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  }, []);
+
+  const getInitialPageId = useCallback((orderList) => {
+    if (!orderList || orderList.length === 0) return null;
+    const saved = localStorage.getItem("orbita:last_active_page");
+    return (saved && orderList.includes(saved)) ? saved : orderList[0];
+  }, []);
+
+  useEffect(() => {
+    if (currentId) {
+      localStorage.setItem("orbita:last_active_page", currentId);
+    }
+  }, [currentId]);
+
+  useEffect(() => {
+    localStorage.setItem("orbita:last_active_view", view);
+  }, [view]);
 
   /* --- control de sesión Supabase --- */
   useEffect(() => {
@@ -104,6 +144,45 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
+    const fetchProfile = async () => {
+      try {
+        let { data, error } = await supabase
+          .from("profiles")
+          .select("role, is_blocked")
+          .eq("id", user.id)
+          .single();
+
+        // Reintento con retraso si hay latencia en el trigger
+        if (error && error.code === "PGRST116") {
+          await new Promise(resolve => setTimeout(resolve, 850));
+          const retry = await supabase
+            .from("profiles")
+            .select("role, is_blocked")
+            .eq("id", user.id)
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
+
+        if (!error && data) {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error("Error al obtener el perfil:", err);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   const handleLogout = async () => {
     const userId = user?.id;
@@ -153,7 +232,7 @@ export default function App() {
         if (!localData) {
           setPages(payloadToUpload.pages);
           setOrder(payloadToUpload.order);
-          setCurrentId(payloadToUpload.order[0]);
+          setCurrentId(id => id || getInitialPageId(payloadToUpload.order));
           store.save(payloadToUpload, activeUser.id);
         }
         setSyncStatus("synced");
@@ -174,7 +253,7 @@ export default function App() {
           };
           setPages(serverData.pages);
           setOrder(serverData.order);
-          setCurrentId(serverData.order[0]);
+          setCurrentId(id => id && serverData.order.includes(id) ? id : getInitialPageId(serverData.order));
           store.save(newPayload, activeUser.id);
           setSyncStatus("synced");
         } else {
@@ -222,9 +301,18 @@ export default function App() {
     setLoading(true);
     const localData = store.load(user.id);
     if (localData && localData.order?.length) {
-      setPages(localData.pages);
-      setOrder(localData.order);
-      setCurrentId(localData.order[0]);
+      // Auto-purga: eliminar definitivamente páginas en papelera con más de 30 días
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const purgedPages = Object.fromEntries(
+        Object.entries(localData.pages).filter(([, pg]) =>
+          !pg.deletedAt || (now - new Date(pg.deletedAt).getTime()) < THIRTY_DAYS_MS
+        )
+      );
+      const purgedOrder = localData.order.filter(id => purgedPages[id]);
+      setPages(purgedPages);
+      setOrder(purgedOrder);
+      setCurrentId(id => id && purgedOrder.includes(id) ? id : getInitialPageId(purgedOrder));
     }
     syncWithServer(localData, user);
   }, [user, authLoading, syncWithServer]);
@@ -244,6 +332,81 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ theme, notifOn })); } catch { /* nada */ }
   }, [theme, notifOn]);
+
+  /* --- carga de anuncios activos --- */
+  useEffect(() => {
+    if (!user) {
+      setAnnouncement(null);
+      return;
+    }
+    const fetchActiveAnnouncement = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("announcements")
+          .select("content, is_active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (!error && data) {
+          const dismissed = localStorage.getItem("orbita:dismissed_announcement");
+          if (data.is_active && dismissed !== data.content) {
+            setAnnouncement(data.content);
+          } else {
+            setAnnouncement(null);
+          }
+        } else {
+          setAnnouncement(null);
+        }
+      } catch (err) {
+        console.error("Error al cargar anuncio:", err);
+      }
+    };
+    fetchActiveAnnouncement();
+  }, [user]);
+
+  /* --- carga y escucha en tiempo real de tickets de soporte para admin --- */
+  useEffect(() => {
+    if (profile?.role !== "admin") {
+      setOpenTicketsCount(0);
+      return;
+    }
+    const fetchOpenTicketsCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from("support_tickets")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "open");
+        if (!error && count !== null) {
+          setOpenTicketsCount(count);
+        }
+      } catch (err) {
+        console.error("Error al obtener conteo de tickets:", err);
+      }
+    };
+    fetchOpenTicketsCount();
+
+    const channel = supabase
+      .channel("support_tickets_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, (payload) => {
+        fetchOpenTicketsCount();
+        if (payload.eventType === "INSERT" && payload.new) {
+          setNewTicketAlert({
+            subject: payload.new.subject,
+            email: payload.new.user_email
+          });
+          // Auto-hide alert after 7 seconds
+          setTimeout(() => {
+            setNewTicketAlert(null);
+          }, 7000);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile]);
 
   /* --- guarda contenido --- */
   const saveTimer = useRef();
@@ -285,7 +448,58 @@ export default function App() {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  const deletePage = (id) => {
+  // --- Soft delete: marca con deletedAt en lugar de borrar físicamente ---
+  const softDeletePage = (id) => {
+    const now = new Date().toISOString();
+    setPages(p => {
+      const next = { ...p };
+      // Recopila la página y todas sus sub-páginas recursivamente
+      const toTrash = new Set([id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const pid of Object.keys(next)) {
+          if (next[pid]?.parentId && toTrash.has(next[pid].parentId) && !toTrash.has(pid)) {
+            toTrash.add(pid); changed = true;
+          }
+        }
+      }
+      toTrash.forEach(x => { if (next[x]) next[x] = { ...next[x], deletedAt: now }; });
+      return next;
+    });
+    // Si la página activa fue a la papelera, navega a otra
+    setCurrentId(cur => {
+      if (cur === id) {
+        const alive = order.filter(pid => pid !== id && !pages[pid]?.deletedAt);
+        return alive[0] || null;
+      }
+      return cur;
+    });
+    if (view === "docs") setView("docs");
+  };
+
+  // --- Restaurar página de la papelera ---
+  const restorePage = (id) => {
+    setPages(p => {
+      const next = { ...p };
+      // Restaura la página y todos sus hijos
+      const toRestore = new Set([id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const pid of Object.keys(next)) {
+          if (next[pid]?.parentId && toRestore.has(next[pid].parentId) && !toRestore.has(pid)) {
+            toRestore.add(pid); changed = true;
+          }
+        }
+      }
+      toRestore.forEach(x => { if (next[x]) next[x] = { ...next[x], deletedAt: null }; });
+      return next;
+    });
+  };
+
+  // --- Eliminar permanentemente una página y sus hijos ---
+  const permanentDelete = (id) => {
     const toRemove = new Set([id]);
     let changed = true;
     while (changed) {
@@ -301,6 +515,16 @@ export default function App() {
       if (toRemove.has(currentId)) setCurrentId(next[0] || null);
       return next;
     });
+  };
+
+  // --- Vaciar papelera: elimina permanentemente todas las páginas eliminadas ---
+  const emptyTrash = () => {
+    setPages(p => {
+      const next = { ...p };
+      Object.keys(next).forEach(id => { if (next[id]?.deletedAt) delete next[id]; });
+      return next;
+    });
+    setOrder(o => o.filter(id => !pages[id]?.deletedAt));
   };
 
   const quickAdd = (text, date, time, checked = false) => {
@@ -332,17 +556,33 @@ export default function App() {
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
-  const childrenOf = useCallback((pid) => order.filter(id => pages[id]?.parentId === pid), [order, pages]);
-  const roots = order.filter(id => !pages[id]?.parentId);
+  // Excluye páginas en papelera de la barra lateral y árbol
+  const childrenOf = useCallback((pid) => order.filter(id => pages[id]?.parentId === pid && !pages[id]?.deletedAt), [order, pages]);
+  const roots = order.filter(id => !pages[id]?.parentId && !pages[id]?.deletedAt);
+
+  // Contador de páginas en la papelera (solo raíces, no hijos)
+  const trashedPages = useMemo(() => order.filter(id => pages[id]?.deletedAt && !pages[id]?.parentId), [order, pages]);
 
   const allTodos = useMemo(() => {
     const list = [];
     for (const pid of order) {
-      const pg = pages[pid]; if (!pg) continue;
+      const pg = pages[pid];
+      // Excluir páginas eliminadas del Calendario y Agenda
+      if (!pg || pg.deletedAt) continue;
       for (const b of pg.blocks) {
         if (b.type === "todo" && b.text.trim()) {
+          const rawText = b.text;
+          const matches = rawText.match(/#[a-zA-Z0-9_áéíóúÁÉÍÓÚñÑ]+/g) || [];
+          const tags = matches.map(m => m.slice(1).toLowerCase());
+          let cleanText = rawText;
+          matches.forEach(m => {
+            cleanText = cleanText.replace(m, "");
+          });
+          cleanText = cleanText.replace(/\s+/g, " ").trim();
+          if (!cleanText) cleanText = rawText;
+
           list.push({ pageId: pid, pageTitle: pg.title || "Sin título", pageIcon: pg.icon, blockId: b.id,
-                      text: b.text, checked: b.checked, date: b.date || null, time: b.time || null, completedAt: b.completedAt || null });
+                      text: rawText, cleanText, checked: b.checked, date: b.date || null, time: b.time || null, completedAt: b.completedAt || null, tags });
         }
       }
     }
@@ -373,13 +613,64 @@ export default function App() {
     return () => clearInterval(iv);
   }, [notifOn]);
 
+  const subscribeUserToPush = async () => {
+    if (!user) return;
+    try {
+      if (!("serviceWorker" in navigator)) return;
+      const registration = await navigator.serviceWorker.ready;
+      
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        console.warn("Falta VITE_VAPID_PUBLIC_KEY en las variables de entorno.");
+        return;
+      }
+      
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey)
+        });
+      }
+      
+      const subJSON = subscription.toJSON();
+      if (!subJSON.keys || !subJSON.keys.p256dh || !subJSON.keys.auth) {
+        throw new Error("Claves de suscripción incompletas.");
+      }
+
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert({
+          user_id: user.id,
+          endpoint: subscription.endpoint,
+          p256dh: subJSON.keys.p256dh,
+          auth: subJSON.keys.auth
+        }, { onConflict: "endpoint" });
+
+      if (error) throw error;
+      console.log("Suscripción Push registrada en Supabase.");
+    } catch (err) {
+      console.warn("No se pudo registrar la suscripción Push en Supabase:", err);
+    }
+  };
+
   const enableNotifs = async () => {
-    if (!("Notification" in window)) { alert("Este navegador no soporta notificaciones."); return; }
+    if (!("Notification" in window)) {
+      showToast("Este navegador no soporta notificaciones.", "error");
+      return;
+    }
     try {
       const perm = await Notification.requestPermission();
-      if (perm === "granted") setNotifOn(true);
-      else alert("No se concedió el permiso de notificaciones.");
-    } catch { alert("No se pudo activar los recordatorios."); }
+      if (perm === "granted") {
+        setNotifOn(true);
+        showToast("Recordatorios activados correctamente");
+        await subscribeUserToPush();
+      } else {
+        showToast("No se concedió el permiso de notificaciones.", "error");
+      }
+    } catch {
+      showToast("No se pudo activar los recordatorios.", "error");
+    }
   };
 
   /* --- respaldo --- */
@@ -396,11 +687,21 @@ export default function App() {
       try {
         const data = JSON.parse(reader.result);
         if (!data.pages || !Array.isArray(data.order)) throw new Error("formato");
-        if (!confirm("Esto reemplazará TODO tu contenido actual con el del respaldo. ¿Continuar?")) return;
-        setPages(data.pages); setOrder(data.order); setCurrentId(data.order[0] || null);
-        setSettingsOpen(false);
-        alert("Respaldo importado con éxito.");
-      } catch { alert("El archivo no es un respaldo válido de Órbita."); }
+        
+        setConfirmDialog({
+          title: "¿Importar respaldo?",
+          message: "Esto reemplazará todo tu contenido actual de forma permanente. ¿Deseas continuar?",
+          onConfirm: () => {
+            setPages(data.pages);
+            setOrder(data.order);
+            setCurrentId(data.order[0] || null);
+            setSettingsOpen(false);
+            showToast("Respaldo importado con éxito");
+          }
+        });
+      } catch {
+        showToast("El archivo no es un respaldo válido de Órbita.", "error");
+      }
     };
     reader.readAsText(file);
   };
@@ -409,14 +710,16 @@ export default function App() {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
     return order.filter(id => {
-      const pg = pages[id]; if (!pg) return false;
+      const pg = pages[id];
+      // Excluir páginas en papelera del buscador
+      if (!pg || pg.deletedAt) return false;
       return (pg.title || "").toLowerCase().includes(q) || pg.blocks.some(b => (b.text || "").toLowerCase().includes(q));
     });
   }, [search, order, pages]);
 
   const selectPage = (id) => { setCurrentId(id); setView("docs"); if (window.innerWidth < 768) setSidebarOpen(false); };
 
-  if (authLoading) {
+  if (authLoading || (user && profileLoading && !profile)) {
     return (
       <div className="flex h-full items-center justify-center" style={{ background: T.bg }}>
         <div className="text-sm" style={{ color: T.muted }}>Comprobando sesión…</div>
@@ -426,6 +729,37 @@ export default function App() {
 
   if (!user) {
     return <Auth onLoginSuccess={(u) => setUser(u)} />;
+  }
+
+  if (profile?.is_blocked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center" style={{ background: T.bg, color: T.ink }}>
+        <div className="max-w-md w-full rounded-2xl border p-8 shadow-2xl backdrop-blur-md" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl mx-auto mb-4" style={{ background: "rgba(239, 68, 68, 0.15)", color: "var(--danger, #ef4444)" }}>
+            <AlertCircle size={24} />
+          </div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight">
+            Acceso Suspendido
+          </h1>
+          <p className="mt-4 text-sm leading-relaxed" style={{ color: T.muted }}>
+            Tu cuenta ha sido bloqueada temporal o permanentemente por infringir las políticas de uso y normas de convivencia de Órbita.
+          </p>
+          <p className="mt-2 text-xs" style={{ color: T.muted }}>
+            Si consideras que esto es un error o deseas apelar la decisión, por favor contáctanos en:
+          </p>
+          <div className="mt-4 rounded-lg p-3 text-sm font-semibold" style={{ border: "1px solid " + T.border, background: T.bg }}>
+            soporte@saucedocode.com
+          </div>
+          <button
+            onClick={handleLogout}
+            className="mt-6 w-full rounded-lg py-2.5 text-xs font-semibold text-white shadow-md transition duration-200 hover:brightness-105 active:scale-[0.98]"
+            style={{ background: "var(--danger, #ef4444)" }}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -447,6 +781,22 @@ export default function App() {
   return (
     <div className="flex h-full w-full overflow-hidden font-sans" style={{ background: T.bg, color: T.ink }}>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 z-20 bg-black/30 md:hidden" />}
+
+      {/* Alerta flotante de nuevo ticket de soporte para el administrador */}
+      {newTicketAlert && (
+        <div className="fixed top-5 right-5 z-[100] flex max-w-sm w-80 flex-col gap-1.5 rounded-xl border p-4 shadow-2xl animate-in slide-in-from-top-5 duration-300 bg-[var(--card, #1e1e1e)] text-left"
+             style={{ borderColor: "var(--accent)" }}>
+          <div className="flex items-center gap-2 text-[var(--accent)]">
+            <Bell size={15} className="animate-bounce" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Nuevo Reporte de Soporte</span>
+          </div>
+          <p className="text-xs font-bold leading-tight text-[var(--ink, #ffffff)] truncate">{newTicketAlert.subject}</p>
+          <p className="text-[10px] text-neutral-400 truncate">De: {newTicketAlert.email}</p>
+          <button onClick={() => { setView("admin"); setNewTicketAlert(null); }} className="mt-1.5 text-[11px] font-bold text-left underline text-[var(--accent)] hover:text-opacity-80 transition outline-none">
+            Ver en panel de administración →
+          </button>
+        </div>
+      )}
 
       {sidebarOpen && (
         <aside className="fixed z-30 flex h-full w-64 flex-shrink-0 flex-col border-r md:static" style={{ background: T.sidebar, borderColor: T.border }}>
@@ -477,6 +827,9 @@ export default function App() {
             <NavBtn id="docs" icon={FileText} label="Páginas" />
             <NavBtn id="calendar" icon={CalendarDays} label="Calendario" />
             <NavBtn id="agenda" icon={ListChecks} label="Agenda" />
+            {profile?.role === "admin" && (
+              <NavBtn id="admin" icon={Shield} label="Admin" />
+            )}
           </div>
 
           <div className="px-3 pb-2">
@@ -495,7 +848,7 @@ export default function App() {
               </div>
             ) : (
               <Tree roots={roots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
-                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage} deletePage={deletePage} />
+                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage} deletePage={softDeletePage} />
             )}
           </nav>
 
@@ -503,12 +856,28 @@ export default function App() {
             <button onClick={() => addPage(null)} className="hov flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium" style={{ color: T.accent }}>
               <Plus size={15} /> Nueva página
             </button>
+            <button onClick={() => setView("trash")}
+                    className={`hov flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium mt-0.5 ${view === "trash" ? "font-semibold" : ""}`}
+                    style={{ color: view === "trash" ? T.accent : T.muted }}>
+              <Trash2 size={14} /> Papelera
+              {trashedPages.length > 0 && (
+                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white"
+                      style={{ background: "var(--danger, #ef4444)" }}>
+                  {trashedPages.length}
+                </span>
+              )}
+            </button>
             <div className="mt-1 flex gap-1">
               <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[12px]" style={{ color: T.muted }}>
                 {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />} {theme === "dark" ? "Claro" : "Oscuro"}
               </button>
-              <button onClick={() => setSettingsOpen(true)} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[12px]" style={{ color: T.muted }}>
+              <button onClick={() => setSettingsOpen(true)} className="hov relative flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[12px]" style={{ color: T.muted }}>
                 <Settings size={14} /> Ajustes
+                {profile?.role === "admin" && openTicketsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[var(--danger, #ef4444)] text-[9px] font-bold text-white animate-pulse">
+                    {openTicketsCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -516,6 +885,15 @@ export default function App() {
       )}
 
       <main className="relative flex h-full flex-1 flex-col overflow-y-auto">
+        {announcement && (
+          <div className="flex items-center justify-between px-6 py-2.5 text-xs font-semibold bg-[var(--accent-soft)] text-[var(--accent)] border-b border-[var(--border)] animate-in slide-in-from-top duration-200">
+            <span className="flex items-center gap-1.5">📢 {announcement}</span>
+            <button onClick={() => {
+              localStorage.setItem("orbita:dismissed_announcement", announcement);
+              setAnnouncement(null);
+            }} className="hov rounded p-0.5"><X size={12} /></button>
+          </div>
+        )}
         {!sidebarOpen && (
           <button onClick={() => setSidebarOpen(true)} className="hov absolute left-3 top-3 z-10 rounded p-1.5"><PanelLeft size={17} style={{ color: T.muted }} /></button>
         )}
@@ -524,9 +902,15 @@ export default function App() {
           <CalendarView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
         ) : view === "agenda" ? (
           <AgendaView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
+        ) : view === "trash" ? (
+          <TrashView pages={pages} order={order} onRestore={(id) => { restorePage(id); showToast("Página restaurada"); }}
+                     onDelete={(id) => { setConfirmDialog({ title: "¿Eliminar definitivamente?", message: "Esta acción es irreversible. La página y todo su contenido se perderá para siempre.", onConfirm: () => permanentDelete(id) }); }}
+                     onEmpty={() => { setConfirmDialog({ title: "¿Vaciar papelera?", message: "Esto eliminará permanentemente todas las páginas en la papelera. No se puede deshacer.", onConfirm: emptyTrash }); }} />
+        ) : view === "admin" && profile?.role === "admin" ? (
+          <AdminDashboardView user={user} profile={profile} openTicketsCount={openTicketsCount} setOpenTicketsCount={setOpenTicketsCount} showToast={showToast} />
         ) : page ? (
           <Editor key={page.id} page={page} updatePage={updatePage} updateBlockInPage={updateBlockInPage}
-                  onAddSub={() => addPage(page.id)} onDelete={() => deletePage(page.id)} />
+                  onAddSub={() => addPage(page.id)} onDelete={() => softDeletePage(page.id)} showToast={showToast} user={user} />
         ) : (
           <div className="grid flex-1 place-items-center px-6 text-center">
             <div>
@@ -544,6 +928,50 @@ export default function App() {
                        onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
                        user={user} onLogout={handleLogout} />
       )}
+
+      {/* Notificaciones Toast flotantes globales */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl border px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 bg-[var(--card, #1e1e1e)] text-left"
+             style={{
+               borderColor: toast.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)",
+               color: "var(--ink, #ffffff)",
+             }}>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold leading-none"
+                style={{
+                  background: toast.type === "success" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                  color: toast.type === "success" ? "#10b981" : "#ef4444",
+                }}>
+            {toast.type === "success" ? "✓" : "✕"}
+          </span>
+          <span className="text-xs font-semibold">{toast.text}</span>
+        </div>
+      )}
+
+      {/* Diálogo Confirmación Global */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setConfirmDialog(null)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left"
+               style={{ background: "var(--card, #1e1e1e)", borderColor: "var(--border)", color: "var(--ink)" }}>
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950/20 text-amber-500">
+                <AlertCircle size={20} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-serif text-base font-bold">{confirmDialog.title}</h3>
+                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>{confirmDialog.message}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setConfirmDialog(null)} className="hov px-4 py-2 rounded-lg text-xs font-semibold border transition" style={{ borderColor: "var(--border)", color: "var(--ink)" }}>
+                Cancelar
+              </button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="px-4 py-2 rounded-lg text-xs font-semibold text-white shadow transition hover:brightness-105 active:scale-[0.98]" style={{ background: T.accent }}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -551,64 +979,199 @@ export default function App() {
 /* ================= Ajustes ================= */
 function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout }) {
   const fileRef = useRef(null);
+  const [activeTab, setActiveTab] = useState("general"); // "general", "support", "rules"
+  
+  // Soporte
+  const [subject, setSubject] = useState("");
+  const [desc, setDesc] = useState("");
+  const [sending, setSending] = useState(false);
+  const [supportMsg, setSupportMsg] = useState(null);
+  const [supportErr, setSupportErr] = useState(null);
+
+  const handleSendTicket = async (e) => {
+    e.preventDefault();
+    if (!subject.trim() || !desc.trim()) return;
+
+    // Anti-spam limit
+    const lastSent = localStorage.getItem("orbita:last_ticket_time");
+    if (lastSent && Date.now() - parseInt(lastSent) < 5 * 60 * 1000) {
+      const minutesLeft = Math.ceil((5 * 60 * 1000 - (Date.now() - parseInt(lastSent))) / 60000);
+      setSupportErr(`Por favor, espera ${minutesLeft} minuto(s) antes de enviar otro ticket.`);
+      return;
+    }
+
+    setSending(true);
+    setSupportMsg(null);
+    setSupportErr(null);
+    try {
+      const { error } = await supabase
+        .from("support_tickets")
+        .insert({
+          user_id: user.id,
+          user_email: user.email,
+          subject: subject.trim(),
+          description: desc.trim()
+        });
+      if (error) throw error;
+
+      localStorage.setItem("orbita:last_ticket_time", Date.now().toString());
+      setSubject("");
+      setDesc("");
+      setSupportMsg("¡Tu reporte ha sido enviado con éxito! Daremos seguimiento interno.");
+    } catch (err) {
+      setSupportErr(err.message || "Error al enviar el ticket.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const themeBtn = (val, Icon, label) => (
     <button onClick={() => setTheme(val)} className="flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]"
             style={{ borderColor: theme === val ? T.accent : T.border, color: theme === val ? T.accent : T.ink, fontWeight: theme === val ? 600 : 400 }}>
       <Icon size={15} /> {label}
     </button>
   );
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-xl border p-5 shadow-2xl" style={{ background: T.bg, borderColor: T.border, color: T.ink }}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-lg font-bold">Ajustes</h2>
-          <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl rounded-xl border p-5 shadow-2xl flex flex-col md:flex-row gap-6 max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150" style={{ background: T.bg, borderColor: T.border, color: T.ink }}>
+        
+        {/* Barra lateral de Navegación del Modal */}
+        <div className="w-full md:w-44 flex flex-row md:flex-col border-b md:border-b-0 md:border-r pb-4 md:pb-0 pr-0 md:pr-4 gap-1 flex-wrap md:flex-nowrap">
+          <button onClick={() => setActiveTab("general")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
+                  style={{ background: activeTab === "general" ? T.accentSoft : "transparent", color: activeTab === "general" ? T.accent : T.ink }}>
+            <Settings size={15} /> General
+          </button>
+          <button onClick={() => setActiveTab("support")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
+                  style={{ background: activeTab === "support" ? T.accentSoft : "transparent", color: activeTab === "support" ? T.accent : T.ink }}>
+            <MessageSquare size={15} /> Soporte
+          </button>
+          <button onClick={() => setActiveTab("rules")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
+                  style={{ background: activeTab === "rules" ? T.accentSoft : "transparent", color: activeTab === "rules" ? T.accent : T.ink }}>
+            <AlertCircle size={15} /> Normas
+          </button>
+          <button onClick={onLogout} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-semibold mt-auto" style={{ color: "var(--danger, #ef4444)" }}>
+            <Minus size={15} /> Cerrar sesión
+          </button>
         </div>
 
-        <section className="mb-4">
-          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Apariencia</p>
-          <div className="flex gap-2">{themeBtn("light", Sun, "Claro")}{themeBtn("dark", Moon, "Oscuro")}</div>
-        </section>
+        {/* Panel de Contenido */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-serif text-lg font-bold capitalize">
+              {activeTab === "general" ? "Ajustes Generales" : 
+               activeTab === "support" ? "Soporte Técnico" : "Términos y Normas"}
+            </h2>
+            <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
+          </div>
 
-        <section className="mb-4">
-          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Recordatorios</p>
-          {notifOn ? (
-            <div className="flex items-start gap-2 rounded-md border px-3 py-2 text-[13px]" style={{ borderColor: T.border, color: T.accent }}>
-              <Bell size={15} className="mt-0.5 flex-shrink-0" /> Activados. Te avisa a la hora de cada tarea, mientras la app esté abierta.
+          {/* TAB: GENERAL */}
+          {activeTab === "general" && (
+            <div className="space-y-4">
+              <section>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Apariencia</p>
+                <div className="flex gap-2">{themeBtn("light", Sun, "Claro")}{themeBtn("dark", Moon, "Oscuro")}</div>
+              </section>
+
+              <section>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Recordatorios</p>
+                {notifOn ? (
+                  <div className="flex items-start gap-2 rounded-md border px-3 py-2 text-[13px]" style={{ borderColor: T.border, color: T.accent }}>
+                    <Bell size={15} className="mt-0.5 flex-shrink-0" /> Activados. Te avisa a la hora de cada tarea, mientras la app esté abierta.
+                  </div>
+                ) : (
+                  <button onClick={enableNotifs} className="flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[13px] font-medium text-white" style={{ background: T.accent }}>
+                    <Bell size={15} /> Activar recordatorios
+                  </button>
+                )}
+              </section>
+
+              <section>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Cuenta</p>
+                <div className="flex items-center justify-between gap-2 rounded-lg border p-3 text-[13px]" style={{ borderColor: T.border }}>
+                  <span className="truncate font-medium" style={{ color: T.ink }} title={user?.email}>{user?.email}</span>
+                </div>
+              </section>
+
+              <section>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Datos (respaldo)</p>
+                <div className="flex gap-2">
+                  <button onClick={onExport} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]" style={{ borderColor: T.border }}>
+                    <Download size={15} /> Exportar
+                  </button>
+                  <button onClick={() => fileRef.current?.click()} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]" style={{ borderColor: T.border }}>
+                    <Upload size={15} /> Importar
+                  </button>
+                  <input ref={fileRef} type="file" accept="application/json,.json" className="hidden"
+                         onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
+                </div>
+                <p className="mt-2 text-[11px] leading-relaxed" style={{ color: T.muted }}>
+                  Exporta de vez en cuando para guardar tus notas en un archivo o transferirlas a otro dispositivo.
+                </p>
+              </section>
             </div>
-          ) : (
-            <button onClick={enableNotifs} className="flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[13px] font-medium text-white" style={{ background: T.accent }}>
-              <Bell size={15} /> Activar recordatorios
-            </button>
           )}
-        </section>
 
-        <section className="mb-4">
-          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Cuenta</p>
-          <div className="flex items-center justify-between gap-2 rounded-lg border p-3 text-[13px]" style={{ borderColor: T.border }}>
-            <span className="truncate font-medium text-[var(--ink)]" title={user?.email}>{user?.email}</span>
-            <button onClick={onLogout} className="rounded px-2.5 py-1 text-[11px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]" style={{ background: T.danger }}>
-              Cerrar sesión
-            </button>
-          </div>
-        </section>
+          {/* TAB: SOPORTE */}
+          {activeTab === "support" && (
+            <form onSubmit={handleSendTicket} className="space-y-4">
+              <p className="text-[12px] leading-relaxed" style={{ color: T.muted }}>
+                ¿Tienes un problema técnico o una sugerencia? Manda un mensaje aquí. Nuestro equipo lo revisará y le dará seguimiento a la brevedad.
+              </p>
 
-        <section>
-          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Datos (respaldo)</p>
-          <div className="flex gap-2">
-            <button onClick={onExport} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]" style={{ borderColor: T.border }}>
-              <Download size={15} /> Exportar
-            </button>
-            <button onClick={() => fileRef.current?.click()} className="hov flex flex-1 items-center justify-center gap-1.5 rounded-md border py-2 text-[13px]" style={{ borderColor: T.border }}>
-              <Upload size={15} /> Importar
-            </button>
-            <input ref={fileRef} type="file" accept="application/json,.json" className="hidden"
-                   onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
-          </div>
-          <p className="mt-2 text-[11px] leading-relaxed" style={{ color: T.muted }}>
-            Tus datos viven solo en este dispositivo. Exporta de vez en cuando para no perderlos y para pasarlos a otro aparato.
-          </p>
-        </section>
+              {supportMsg && (
+                <div className="p-3 text-xs rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 text-[var(--accent)] font-medium">
+                  {supportMsg}
+                </div>
+              )}
+
+              {supportErr && (
+                <div className="p-3 text-xs rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-[var(--danger, #ef4444)] font-medium">
+                  {supportErr}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: T.muted }}>Asunto</label>
+                <input type="text" required placeholder="Ej. Error en calendario" value={subject} onChange={e => setSubject(e.target.value)}
+                       className="w-full rounded-lg border px-3 py-2 text-[13px] outline-none transition"
+                       style={{ borderColor: T.border, background: T.bg, color: T.ink }} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: T.muted }}>Detalle del mensaje</label>
+                <textarea required rows={4} placeholder="Describe el problema de forma detallada..." value={desc} onChange={e => setDesc(e.target.value)}
+                          className="w-full rounded-lg border px-3 py-2 text-[13px] outline-none transition resize-none"
+                          style={{ borderColor: T.border, background: T.bg, color: T.ink }} />
+              </div>
+
+              <button type="submit" disabled={sending} className="w-full py-2.5 rounded-lg text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shadow"
+                      style={{ background: T.accent }}>
+                {sending ? <Loader2 size={14} className="animate-spin" /> : "Enviar reporte de soporte"}
+              </button>
+            </form>
+          )}
+
+          {/* TAB: RULES */}
+          {activeTab === "rules" && (
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1 text-xs leading-relaxed" style={{ color: T.ink }}>
+              <div>
+                <h3 className="font-semibold text-[13px] mb-1">Términos de Servicio</h3>
+                <p style={{ color: T.muted }}>Al usar Órbita, aceptas que tus datos sean encriptados en la base de datos de la plataforma y guardados de forma de caché en el dispositivo. Eres responsable de exportar respaldos regularmente. Está prohibido dar mal uso a las herramientas y automatizaciones del sistema.</p>
+              </div>
+              <hr style={{ borderColor: T.border }} />
+              <div>
+                <h3 className="font-semibold text-[13px] mb-1">Normas de Convivencia</h3>
+                <ul className="list-disc pl-4 space-y-1.5" style={{ color: T.muted }}>
+                  <li><strong>Respeto absoluto:</strong> Cualquier ticket de soporte ofensivo, obsceno, insultante o con amenazas será sancionado de forma definitiva.</li>
+                  <li><strong>Prohibición de Spam:</strong> No usar las cajas de texto ni soporte técnico para propagar spam, publicidad o código malicioso.</li>
+                  <li><strong>Uso Legítimo:</strong> Queda prohibido alterar perfiles ajenos o vulnerar la seguridad de la base de datos de Órbita.</li>
+                  <li><strong>Sanción:</strong> Los perfiles que violen estas normas serán suspendidos de forma indefinida por el equipo administrador.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -662,13 +1225,29 @@ function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
   const [addModal, setAddModal] = useState(null); // null o { date, text, time, checked }
   const today = todayStr();
   const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedTag, setSelectedTag] = useState(null);
+
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const t of todos) {
+      if (t.tags) {
+        for (const tg of t.tags) set.add(tg);
+      }
+    }
+    return Array.from(set).sort();
+  }, [todos]);
+
+  const filteredTodos = useMemo(() => {
+    if (!selectedTag) return todos;
+    return todos.filter(t => t.tags && t.tags.includes(selectedTag));
+  }, [todos, selectedTag]);
 
   const byDate = useMemo(() => {
     const map = {};
-    for (const t of todos) { if (!t.date) continue; (map[t.date] ||= []).push(t); }
+    for (const t of filteredTodos) { if (!t.date) continue; (map[t.date] ||= []).push(t); }
     for (const k in map) map[k].sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
     return map;
-  }, [todos]);
+  }, [filteredTodos]);
 
   const first = new Date(cur.y, cur.m, 1);
   const startPad = (first.getDay() + 6) % 7;
@@ -700,6 +1279,35 @@ function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
           <button onClick={() => shift(1)} className="hov rounded-md border p-1.5" style={{ borderColor: T.border }}><ChevronRight size={16} /></button>
         </div>
       </div>
+
+      {allTags.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-1.5 border-b pb-3" style={{ borderColor: T.border }}>
+          <span className="text-[11px] font-bold uppercase tracking-wider mr-1.5" style={{ color: T.muted }}>Filtrar por:</span>
+          <button onClick={() => setSelectedTag(null)}
+                  className="rounded-full px-2.5 py-0.5 text-[11px] font-medium transition cursor-pointer"
+                  style={{
+                    background: !selectedTag ? T.accent : T.sidebar,
+                    color: !selectedTag ? "#fff" : T.ink,
+                    border: `1px solid ${!selectedTag ? T.accent : T.border}`
+                  }}>
+            Todos
+          </button>
+          {allTags.map(tg => {
+            const active = selectedTag === tg;
+            return (
+              <button key={tg} onClick={() => setSelectedTag(tg)}
+                      className="rounded-full px-2.5 py-0.5 text-[11px] font-medium transition cursor-pointer"
+                      style={{
+                        background: active ? T.accent : T.sidebar,
+                        color: active ? "#fff" : T.ink,
+                        border: `1px solid ${active ? T.accent : T.border}`
+                      }}>
+                #{tg}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border" style={{ borderColor: T.border, background: T.border }}>
         {WEEK_S.map(w => <div key={w} className="py-2 text-center text-[10px] md:text-[11px] font-semibold" style={{ background: T.sidebar, color: T.muted }}>{w}</div>)}
@@ -736,7 +1344,7 @@ function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
                     <button onClick={() => gotoTask(t.pageId)} title={t.text}
                             className="min-w-0 flex-1 truncate text-left"
                             style={{ textDecoration: t.checked ? "line-through" : "none" }}>
-                      {t.time ? `${t.time} ` : ""}{t.text}
+                      {t.time ? `${t.time} ` : ""}{t.cleanText}
                     </button>
                   </div>
                 ))}
@@ -790,11 +1398,18 @@ function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
                   <button onClick={() => gotoTask(t.pageId)} className="min-w-0 flex-1 text-left">
                     <span className="block text-[14px] leading-snug"
                           style={{ textDecoration: t.checked ? "line-through" : "none", color: t.checked ? T.muted : T.ink }}>
-                      {t.text}
+                      {t.cleanText}
                     </span>
-                    <span className="flex items-center gap-1.5 text-[11px] mt-0.5" style={{ color: T.muted }}>
+                    <span className="flex flex-wrap items-center gap-1.5 text-[11px] mt-1" style={{ color: T.muted }}>
                       <span>{t.pageIcon} {t.pageTitle}</span>
                       {t.time && <span>· {t.time}</span>}
+                      {t.tags && t.tags.map(tg => (
+                        <span key={tg} onClick={(e) => { e.stopPropagation(); setSelectedTag(tg === selectedTag ? null : tg); }}
+                              className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition hover:opacity-80 cursor-pointer"
+                              style={{ background: tg === selectedTag ? T.accent : T.border, color: tg === selectedTag ? "#fff" : T.accent }}>
+                          #{tg}
+                        </span>
+                      ))}
                     </span>
                   </button>
                 </div>
@@ -865,8 +1480,24 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
   const [qDate, setQDate] = useState(today);
   const [qTime, setQTime] = useState("");
   const [qChecked, setQChecked] = useState(false);
+  const [selectedTag, setSelectedTag] = useState(null);
 
-  const pend = todos.filter(t => !t.checked);
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const t of todos) {
+      if (t.tags) {
+        for (const tg of t.tags) set.add(tg);
+      }
+    }
+    return Array.from(set).sort();
+  }, [todos]);
+
+  const filteredTodos = useMemo(() => {
+    if (!selectedTag) return todos;
+    return todos.filter(t => t.tags && t.tags.includes(selectedTag));
+  }, [todos, selectedTag]);
+
+  const pend = filteredTodos.filter(t => !t.checked);
   const byDate = (a, b) => (a.date || "9").localeCompare(b.date || "9") || (a.time || "99").localeCompare(b.time || "99");
 
   const groups = [
@@ -878,7 +1509,7 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
     { key: "none", label: "Sin fecha", color: T.muted, items: pend.filter(t => !t.date) },
   ];
 
-  const done = todos.filter(t => t.checked && t.completedAt);
+  const done = filteredTodos.filter(t => t.checked && t.completedAt);
   const doneByDay = {};
   for (const t of done) { const day = t.completedAt.slice(0, 10); (doneByDay[day] ||= []).push(t); }
   const doneDays = Object.keys(doneByDay).sort((a, b) => b.localeCompare(a));
@@ -893,9 +1524,16 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
         {t.checked && <CheckSquare size={12} className="text-white" strokeWidth={3} />}
       </button>
       <button onClick={() => gotoTask(t.pageId)} className="min-w-0 flex-1 text-left">
-        <span className="block text-[14px] leading-snug" style={{ textDecoration: t.checked ? "line-through" : "none", color: t.checked ? T.muted : T.ink }}>{t.text}</span>
-        <span className="flex items-center gap-1.5 text-[11px]" style={{ color: T.muted }}>
+        <span className="block text-[14px] leading-snug" style={{ textDecoration: t.checked ? "line-through" : "none", color: t.checked ? T.muted : T.ink }}>{t.cleanText}</span>
+        <span className="flex flex-wrap items-center gap-1.5 text-[11px] mt-0.5" style={{ color: T.muted }}>
           <span>{t.pageIcon} {t.pageTitle}</span>{t.date && <span>· {chipLabel(t.date, t.time)}</span>}
+          {t.tags && t.tags.map(tg => (
+            <span key={tg} onClick={(e) => { e.stopPropagation(); setSelectedTag(tg === selectedTag ? null : tg); }}
+                  className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition hover:opacity-80 cursor-pointer"
+                  style={{ background: tg === selectedTag ? T.accent : T.border, color: tg === selectedTag ? "#fff" : T.accent }}>
+              #{tg}
+            </span>
+          ))}
         </span>
       </button>
     </div>
@@ -906,6 +1544,35 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-14 sm:px-8">
       <h1 className="mb-4 font-serif text-2xl font-bold">Agenda</h1>
+
+      {allTags.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-1.5 border-b pb-3" style={{ borderColor: T.border }}>
+          <span className="text-[11px] font-bold uppercase tracking-wider mr-1.5" style={{ color: T.muted }}>Filtrar por:</span>
+          <button onClick={() => setSelectedTag(null)}
+                  className="rounded-full px-2.5 py-0.5 text-[11px] font-medium transition cursor-pointer"
+                  style={{
+                    background: !selectedTag ? T.accent : T.sidebar,
+                    color: !selectedTag ? "#fff" : T.ink,
+                    border: `1px solid ${!selectedTag ? T.accent : T.border}`
+                  }}>
+            Todos
+          </button>
+          {allTags.map(tg => {
+            const active = selectedTag === tg;
+            return (
+              <button key={tg} onClick={() => setSelectedTag(tg)}
+                      className="rounded-full px-2.5 py-0.5 text-[11px] font-medium transition cursor-pointer"
+                      style={{
+                        background: active ? T.accent : T.sidebar,
+                        color: active ? "#fff" : T.ink,
+                        border: `1px solid ${active ? T.accent : T.border}`
+                      }}>
+                #{tg}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mb-6 flex flex-col md:flex-row md:items-center gap-2 rounded-lg border p-2" style={{ borderColor: T.border, background: T.sidebar }}>
         <input value={qText} onChange={e => setQText(e.target.value)} onKeyDown={e => { if (e.key === "Enter") submit(); }}
@@ -956,7 +1623,7 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
 }
 
 /* ================= Editor ================= */
-function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete }) {
+function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showToast, user }) {
   const [focusId, setFocusId] = useState(null);
   const [pickIcon, setPickIcon] = useState(false);
 
@@ -1013,7 +1680,8 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete }) {
                  onChange={patch => changeBlock(b.id, patch)}
                  onEnter={(afterType, carry) => insertAfter(b.id, { ...emptyBlock(afterType), text: carry })}
                  onDelete={() => removeBlock(b.id)}
-                 onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }} />
+                 onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }}
+                 showToast={showToast} user={user} />
         ))}
       </div>
 
@@ -1051,8 +1719,360 @@ function DateChip({ block, onChange }) {
   );
 }
 
+/* ================= Componente Bloque de Imagen ================= */
+function ImageBlock({ block, onChange, onDelete, user, showToast }) {
+  const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    onChange({ uploading: true });
+    
+    try {
+      let imageUrl = "";
+      if (supabase && user) {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${uid()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("uploads")
+          .upload(filePath, file);
+          
+        if (!uploadError) {
+          const { data } = supabase.storage.from("uploads").getPublicUrl(filePath);
+          imageUrl = data.publicUrl;
+        }
+      }
+      
+      if (!imageUrl) {
+        imageUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      }
+      
+      onChange({ imageUrl, uploading: false });
+      if (showToast) showToast("Imagen cargada con éxito");
+    } catch (err) {
+      console.error("Error al cargar la imagen:", err);
+      onChange({ uploading: false });
+      if (showToast) showToast("No se pudo cargar la imagen.", "error");
+    }
+  };
+
+  return (
+    <div className="group relative my-3 rounded-xl border p-2 transition hover:shadow-md select-none w-full animate-in fade-in duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+      {block.imageUrl ? (
+        <div className="relative overflow-hidden rounded-lg">
+          <img src={block.imageUrl} alt="Cargada" className="max-h-[350px] w-full object-cover" />
+          <button onClick={onDelete} className="absolute right-2 top-2 rounded-full p-1.5 shadow-lg bg-black/60 hover:bg-black/80 text-white transition cursor-pointer">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          {block.uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={24} className="animate-spin text-[var(--accent)]" style={{ color: T.accent }} />
+              <span className="text-xs" style={{ color: T.muted }}>Subiendo imagen...</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <div className="rounded-full p-3 bg-neutral-100 dark:bg-neutral-800" style={{ color: T.accent }}>
+                <Image size={24} />
+              </div>
+              <p className="text-xs font-semibold" style={{ color: T.ink }}>Bloque de Imagen</p>
+              <p className="text-[10px] px-4" style={{ color: T.muted }}>Sube un archivo o usa la cámara de tu dispositivo</p>
+              <div className="flex gap-2 mt-2">
+                <label className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition shadow cursor-pointer hover:brightness-105" style={{ background: T.accent }}>
+                  <UploadCloud size={13} /> Seleccionar
+                  <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
+                </label>
+                <label className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800" style={{ borderColor: T.border, color: T.ink }}>
+                  <Camera size={13} /> Cámara
+                  <input type="file" accept="image/*" capture="environment" onChange={handleImageFile} className="hidden" />
+                </label>
+              </div>
+            </div>
+          )}
+          <button onClick={onDelete} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= Componente Bloque de Audio ================= */
+function AudioBlock({ block, onChange, onDelete, user, showToast }) {
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const audioRef = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const options = { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/aac" };
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      
+      mediaRecorder.onstop = async () => {
+        clearInterval(timerRef.current);
+        const blob = new Blob(audioChunksRef.current, { type: options.mimeType });
+        onChange({ uploading: true });
+        
+        try {
+          let audioUrl = "";
+          if (supabase && user) {
+            const fileName = `${uid()}.${options.mimeType.split("/")[1]}`;
+            const filePath = `${user.id}/${fileName}`;
+            
+            const { error: uploadError } = await supabase.storage
+              .from("uploads")
+              .upload(filePath, blob);
+              
+            if (!uploadError) {
+              const { data } = supabase.storage.from("uploads").getPublicUrl(filePath);
+              audioUrl = data.publicUrl;
+            }
+          }
+          
+          if (!audioUrl) {
+            audioUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          }
+          
+          onChange({ audioUrl, uploading: false });
+          if (showToast) showToast("Nota de voz guardada");
+        } catch (err) {
+          console.error("Error al guardar audio:", err);
+          onChange({ uploading: false });
+          if (showToast) showToast("No se pudo guardar la nota de voz.", "error");
+        }
+        
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setRecording(true);
+      setSeconds(0);
+      timerRef.current = setInterval(() => {
+        setSeconds(s => s + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Error al acceder al micrófono:", err);
+      if (showToast) showToast("No se pudo acceder al micrófono.", "error");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(block.audioUrl);
+      audioRef.current.onloadedmetadata = () => {
+        setAudioDuration(audioRef.current.duration);
+      };
+      audioRef.current.ontimeupdate = () => {
+        setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+      };
+      audioRef.current.onended = () => {
+        setIsPlaying(false);
+        setProgress(0);
+      };
+    }
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const formatTime = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
+  return (
+    <div className="group relative my-3 rounded-xl border p-3.5 transition hover:shadow-md select-none w-full animate-in fade-in duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+      {block.audioUrl ? (
+        <div className="flex items-center gap-3">
+          <button onClick={togglePlay} className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white shadow transition cursor-pointer hover:scale-105 active:scale-95" style={{ background: T.accent }}>
+            {isPlaying ? <Pause size={15} fill="white" /> : <Play size={15} fill="white" className="ml-0.5" />}
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold truncate" style={{ color: T.ink }}>Nota de voz</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: T.border }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: T.accent }} />
+              </div>
+              <span className="text-[10px] font-medium" style={{ color: T.muted }}>
+                {audioRef.current ? formatTime(audioRef.current.currentTime) : "0:00"} / {audioDuration ? formatTime(audioDuration) : "Grabar"}
+              </span>
+            </div>
+          </div>
+          <button onClick={onDelete} className="rounded-full p-1.5 text-neutral-400 hover:text-red-500 transition hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-5 text-center">
+          {block.uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={24} className="animate-spin text-[var(--accent)]" style={{ color: T.accent }} />
+              <span className="text-xs" style={{ color: T.muted }}>Guardando audio...</span>
+            </div>
+          ) : recording ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/20 text-red-500 animate-pulse">
+                <Mic size={24} />
+                <span className="absolute -inset-1.5 rounded-full border border-red-500/30 animate-ping" />
+              </div>
+              <span className="text-xs font-semibold text-red-500">Grabando... {formatTime(seconds)}</span>
+              <button onClick={stopRecording} className="flex items-center gap-1.5 rounded-lg bg-red-500 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-red-600 transition cursor-pointer">
+                <Square size={11} fill="white" /> Detener grabación
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <div className="rounded-full p-3 bg-neutral-100 dark:bg-neutral-800" style={{ color: T.accent }}>
+                <Mic size={24} />
+              </div>
+              <p className="text-xs font-semibold" style={{ color: T.ink }}>Nota de voz</p>
+              <p className="text-[10px]" style={{ color: T.muted }}>Graba tus pensamientos en formato de audio</p>
+              <button onClick={startRecording} className="mt-2 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition shadow hover:brightness-105 active:scale-98 cursor-pointer" style={{ background: T.accent }}>
+                <Mic size={13} /> Comenzar a grabar
+              </button>
+            </div>
+          )}
+          <button onClick={onDelete} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= Componente Bloque de Enlace ================= */
+function LinkBlock({ block, onChange, onDelete }) {
+  const handleUrlChange = (e) => {
+    onChange({ text: e.target.value });
+  };
+
+  const handleLoadLink = () => {
+    const url = block.text.trim();
+    if (!url) return;
+    
+    let isYT = false;
+    let ytId = "";
+    let isSpotify = false;
+    let spotifyEmbedUrl = "";
+    
+    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const ytMatch = url.match(ytRegex);
+    if (ytMatch && ytMatch[1]) {
+      isYT = true;
+      ytId = ytMatch[1];
+    }
+    
+    if (url.includes("spotify.com/")) {
+      isSpotify = true;
+      spotifyEmbedUrl = url.replace("spotify.com/", "spotify.com/embed/");
+    }
+    
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname;
+    } catch {
+      hostname = url;
+    }
+
+    onChange({
+      linkLoaded: true,
+      isYT,
+      ytId,
+      isSpotify,
+      spotifyEmbedUrl,
+      linkTitle: isYT ? "Video de YouTube" : isSpotify ? "Reproductor de Spotify" : hostname,
+      linkDescription: `Enlace externo a ${hostname}. Haz clic para abrir en una pestaña nueva o editar el título.`,
+      hostname
+    });
+  };
+
+  return (
+    <div className="group relative my-3 rounded-xl border p-3 transition hover:shadow-md select-none w-full animate-in fade-in duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+      {block.linkLoaded ? (
+        <div>
+          {block.isYT ? (
+            <div className="overflow-hidden rounded-lg border shadow-sm aspect-video w-full" style={{ borderColor: T.border }}>
+              <iframe src={`https://www.youtube.com/embed/${block.ytId}`} title={block.linkTitle} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="h-full w-full animate-in fade-in duration-300" />
+            </div>
+          ) : block.isSpotify ? (
+            <div className="overflow-hidden rounded-lg border shadow-sm w-full" style={{ borderColor: T.border }}>
+              <iframe src={block.spotifyEmbedUrl} width="100%" height="80" frameBorder="0" allowtransparency="true" allow="encrypted-media" className="rounded-lg" />
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800" style={{ color: T.accent }}>
+                <Link size={24} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <input type="text" value={block.linkTitle || ""} onChange={e => onChange({ linkTitle: e.target.value })}
+                       className="block w-full bg-transparent font-serif text-sm font-bold leading-tight outline-none border-b border-transparent focus:border-neutral-300" style={{ color: T.ink }} />
+                <textarea rows={2} value={block.linkDescription || ""} onChange={e => onChange({ linkDescription: e.target.value })}
+                          className="block w-full mt-1 resize-none bg-transparent text-[11px] leading-relaxed outline-none border-b border-transparent focus:border-neutral-300" style={{ color: T.muted }} />
+                <a href={block.text} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 text-[10px] hover:underline" style={{ color: T.accent }}>
+                  <span>{block.hostname || block.text}</span>
+                  <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+          )}
+          <button onClick={onDelete} className="absolute right-2 top-2 rounded-full p-1.5 shadow bg-white dark:bg-neutral-800 border text-neutral-400 hover:text-red-500 transition cursor-pointer" style={{ borderColor: T.border }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 w-full">
+          <input type="text" autoFocus value={block.text} onChange={handleUrlChange}
+                 onKeyDown={e => { if (e.key === "Enter") handleLoadLink(); }}
+                 placeholder="Pega un enlace (YouTube, Spotify, etc.) y presiona Enter..."
+                 className="w-full flex-1 rounded border px-3 py-1.5 text-xs outline-none bg-[var(--card)]" style={{ borderColor: T.border, color: T.ink }} />
+          <button onClick={handleLoadLink} className="rounded px-3 py-1.5 text-xs font-semibold text-white transition shadow cursor-pointer hover:brightness-105" style={{ background: T.accent }}>
+            Cargar
+          </button>
+          <button onClick={onDelete} className="rounded p-1 text-neutral-400 hover:text-red-500 transition cursor-pointer"><X size={15} /></button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ================= Bloque ================= */
-function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev }) {
+function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev, showToast, user }) {
   const ref = useRef(null);
   const [menu, setMenu] = useState(null);
 
@@ -1097,6 +2117,18 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
     }
   };
 
+  if (block.type === "image") {
+    return <ImageBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+  }
+
+  if (block.type === "audio") {
+    return <AudioBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+  }
+
+  if (block.type === "link") {
+    return <LinkBlock block={block} onChange={onChange} onDelete={onDelete} />;
+  }
+
   if (block.type === "divider") {
     return (
       <div className="group flex items-center py-2">
@@ -1129,6 +2161,17 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
       </div>
 
       {block.type === "todo" && <DateChip block={block} onChange={onChange} />}
+
+      <button
+        onClick={onDelete}
+        title="Eliminar bloque"
+        className="ml-1 flex-shrink-0 opacity-0 transition group-hover:opacity-100 rounded p-1 cursor-pointer"
+        style={{ color: T.muted }}
+        onMouseEnter={e => e.currentTarget.style.color = "var(--danger, #ef4444)"}
+        onMouseLeave={e => e.currentTarget.style.color = T.muted}
+      >
+        <Trash2 size={13} />
+      </button>
     </div>
   );
 }
@@ -1196,3 +2239,482 @@ function seedWorkspace() {
   proj.blocks = [{ ...emptyBlock("h3"), text: "Ideas" }, { ...emptyBlock("text"), text: "" }];
   return { pages: { [home.id]: home, [proj.id]: proj }, order: [home.id, proj.id] };
 }
+
+/* ================= Vista de Administración Especializada ================= */
+function AdminDashboardView({ user, profile, openTicketsCount, setOpenTicketsCount, showToast }) {
+  const [adminTab, setAdminTab] = useState("tickets"); // "tickets", "users", "broadcast"
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [usersList, setUsersList] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [searchEmail, setSearchEmail] = useState("");
+  const [annContent, setAnnContent] = useState("");
+  const [annActive, setAnnActive] = useState(true);
+  const [annSending, setAnnSending] = useState(false);
+  const [stats, setStats] = useState({ totalUsers: 0, activeUsers: 0, openTickets: 0 });
+
+  // Custom UI Alerts
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const fetchAdminData = async () => {
+    setTicketsLoading(true);
+    setUsersLoading(true);
+    try {
+      // Cargar tickets
+      const { data: ticketData, error: tErr } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!tErr && ticketData) setTickets(ticketData);
+
+      // Cargar perfiles
+      const { data: userData, error: uErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!uErr && userData) setUsersList(userData);
+
+      // Cargar último anuncio
+      const { data: annData } = await supabase
+        .from("announcements")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (annData) {
+        setAnnContent(annData.content);
+        setAnnActive(annData.is_active);
+      }
+
+      // Calcular estadísticas
+      if (userData && ticketData) {
+        const now = Date.now();
+        const activeCount = userData.filter(u => {
+          const updatedAt = new Date(u.updated_at).getTime();
+          return now - updatedAt < 48 * 60 * 60 * 1000;
+        }).length;
+
+        const pendingTickets = ticketData.filter(t => t.status === "open").length;
+        setOpenTicketsCount(pendingTickets);
+
+        setStats({
+          totalUsers: userData.length,
+          activeUsers: activeCount,
+          openTickets: pendingTickets
+        });
+      }
+    } catch (err) {
+      console.error("Error al cargar datos de administración:", err);
+    } finally {
+      setTicketsLoading(false);
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminData();
+  }, []);
+
+  const toggleBlockUser = async (targetId, currentBlocked) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_blocked: !currentBlocked })
+        .eq("id", targetId);
+      if (error) throw error;
+      
+      const nextBlocked = !currentBlocked;
+      setUsersList(prev => prev.map(u => u.id === targetId ? { ...u, is_blocked: nextBlocked } : u));
+      
+      // Actualizar conteo de activos
+      setStats(prev => {
+        const nextUsers = usersList.map(u => u.id === targetId ? { ...u, is_blocked: nextBlocked } : u);
+        const now = Date.now();
+        const activeCount = nextUsers.filter(u => {
+          const updatedAt = new Date(u.updated_at).getTime();
+          return now - updatedAt < 48 * 60 * 60 * 1000;
+        }).length;
+        return { ...prev, totalUsers: nextUsers.length, activeUsers: activeCount };
+      });
+
+      showToast(nextBlocked ? "Usuario suspendido correctamente" : "Acceso restaurado correctamente");
+    } catch (err) {
+      showToast(err.message || "Error al actualizar usuario", "error");
+    }
+  };
+
+  const updateTicketStatus = async (ticketId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from("support_tickets")
+        .update({ status: newStatus })
+        .eq("id", ticketId);
+      if (error) throw error;
+      
+      const nextTickets = tickets.map(t => t.id === ticketId ? { ...t, status: newStatus } : t);
+      setTickets(nextTickets);
+      
+      const pendingTickets = nextTickets.filter(t => t.status === "open").length;
+      setOpenTicketsCount(pendingTickets);
+
+      setStats(prev => ({
+        ...prev,
+        openTickets: pendingTickets
+      }));
+
+      showToast("Estado de ticket actualizado");
+    } catch (err) {
+      showToast(err.message || "Error al actualizar ticket", "error");
+    }
+  };
+
+  const deleteTicketConfirm = async (ticketId) => {
+    try {
+      const { error } = await supabase
+        .from("support_tickets")
+        .delete()
+        .eq("id", ticketId);
+      if (error) throw error;
+      
+      const nextTickets = tickets.filter(t => t.id !== ticketId);
+      setTickets(nextTickets);
+      
+      const pendingTickets = nextTickets.filter(t => t.status === "open").length;
+      setOpenTicketsCount(pendingTickets);
+
+      setStats(prev => ({
+        ...prev,
+        openTickets: pendingTickets
+      }));
+
+      showToast("Ticket eliminado con éxito");
+    } catch (err) {
+      showToast(err.message || "Error al eliminar ticket", "error");
+    }
+  };
+
+  const handleSaveAnnouncement = async () => {
+    if (!annContent.trim()) return;
+    setAnnSending(true);
+    try {
+      const { error } = await supabase
+        .from("announcements")
+        .insert({
+          content: annContent.trim(),
+          is_active: annActive
+        });
+      if (error) throw error;
+      showToast("Anuncio global publicado y actualizado");
+    } catch (err) {
+      showToast(err.message || "Error al guardar anuncio", "error");
+    } finally {
+      setAnnSending(false);
+    }
+  };
+
+  const filteredTickets = tickets.filter(t => {
+    if (statusFilter === "all") return true;
+    return t.status === statusFilter;
+  });
+
+  const filteredUsers = usersList.filter(u => 
+    u.email.toLowerCase().includes(searchEmail.toLowerCase())
+  );
+
+  return (
+    <div className="flex-1 p-6 md:p-10 max-w-4xl mx-auto w-full space-y-6 text-[var(--ink)]">
+      {/* Cabecera */}
+      <div className="flex items-center gap-3 border-b pb-4" style={{ borderColor: T.border }}>
+        <div className="p-2.5 rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+          <Shield size={24} />
+        </div>
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight">Panel de Administración</h1>
+          <p className="text-xs" style={{ color: T.muted }}>Gestiona los usuarios, revisa reportes de soporte y publica anuncios globales.</p>
+        </div>
+      </div>
+
+      {/* Cartas de Estadísticas Premium */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-5 border rounded-2xl flex items-center justify-between shadow-sm hover:shadow transition duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="text-left">
+            <span className="block text-xs font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Total Usuarios</span>
+            <span className="text-2xl font-bold font-serif leading-none mt-1.5 block">{stats.totalUsers}</span>
+          </div>
+          <div className="p-3 rounded-lg bg-blue-100/60 dark:bg-blue-950/20 text-blue-500">
+            <Users size={20} />
+          </div>
+        </div>
+
+        <div className="p-5 border rounded-2xl flex items-center justify-between shadow-sm hover:shadow transition duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="text-left">
+            <span className="block text-xs font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Activos (48h)</span>
+            <span className="text-2xl font-bold font-serif text-emerald-500 leading-none mt-1.5 block">{stats.activeUsers}</span>
+          </div>
+          <div className="p-3 rounded-lg bg-emerald-100/60 dark:bg-emerald-950/20 text-emerald-500">
+            <Users size={20} />
+          </div>
+        </div>
+
+        <div className="p-5 border rounded-2xl flex items-center justify-between shadow-sm hover:shadow transition duration-200" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="text-left">
+            <span className="block text-xs font-semibold uppercase tracking-wider" style={{ color: T.muted }}>Tickets Abiertos</span>
+            <span className="text-2xl font-bold font-serif leading-none mt-1.5 block" style={{ color: stats.openTickets > 0 ? "var(--danger)" : "inherit" }}>
+              {stats.openTickets}
+            </span>
+          </div>
+          <div className="p-3 rounded-lg bg-red-100/60 dark:bg-red-950/20 text-[var(--danger)]">
+            <MessageSquare size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b gap-6" style={{ borderColor: T.border }}>
+        <button onClick={() => setAdminTab("tickets")}
+                className="pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition outline-none whitespace-nowrap"
+                style={{ borderColor: adminTab === "tickets" ? T.accent : "transparent", color: adminTab === "tickets" ? T.accent : T.muted }}>
+          Soporte ({stats.openTickets})
+        </button>
+        <button onClick={() => setAdminTab("users")}
+                className="pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition outline-none whitespace-nowrap"
+                style={{ borderColor: adminTab === "users" ? T.accent : "transparent", color: adminTab === "users" ? T.accent : T.muted }}>
+          Moderación
+        </button>
+        <button onClick={() => setAdminTab("broadcast")}
+                className="pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition outline-none whitespace-nowrap"
+                style={{ borderColor: adminTab === "broadcast" ? T.accent : "transparent", color: adminTab === "broadcast" ? T.accent : T.muted }}>
+          Anuncio Global
+        </button>
+      </div>
+
+      {/* Contenido: Tickets */}
+      {adminTab === "tickets" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center gap-4">
+            <p className="text-xs" style={{ color: T.muted }}>Listado de dudas, reportes de error y feedback enviados por los usuarios.</p>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-lg border px-3 py-1.5 text-xs outline-none shadow-sm" style={{ borderColor: T.border, background: T.sidebar, color: T.ink }}>
+              <option value="all">Todos los estados</option>
+              <option value="open">Abiertos</option>
+              <option value="in_progress">En proceso</option>
+              <option value="resolved">Resueltos</option>
+              <option value="cancelled">Cancelados</option>
+            </select>
+          </div>
+
+          <div className="space-y-3">
+            {ticketsLoading ? (
+              <div className="text-center py-10 text-xs" style={{ color: T.muted }}><Loader2 size={20} className="animate-spin inline mr-2" /> Cargando reportes...</div>
+            ) : filteredTickets.length === 0 ? (
+              <div className="text-center py-12 border border-dashed rounded-xl" style={{ borderColor: T.border }}>
+                <p className="text-xs italic" style={{ color: T.muted }}>No se encontraron reportes con este estado.</p>
+              </div>
+            ) : (
+              filteredTickets.map(t => (
+                <div key={t.id} className="p-5 border rounded-2xl space-y-3 text-left hover:shadow-sm transition" style={{ borderColor: T.border, background: T.sidebar }}>
+                  <div className="flex items-start justify-between gap-4">
+                    <h3 className="text-[14px] font-bold" style={{ color: T.ink }}>{t.subject}</h3>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <select value={t.status} onChange={e => updateTicketStatus(t.id, e.target.value)} className="text-[10px] font-bold rounded border px-2 py-0.5 outline-none"
+                              style={{
+                                borderColor: T.border,
+                                background: t.status === "resolved" ? "rgba(16, 185, 129, 0.1)" : t.status === "in_progress" ? "rgba(245, 158, 11, 0.1)" : t.status === "cancelled" ? "rgba(107, 114, 128, 0.15)" : "rgba(239, 68, 68, 0.1)",
+                                color: t.status === "resolved" ? "#10b981" : t.status === "in_progress" ? "#f59e0b" : t.status === "cancelled" ? "#6b7280" : "#ef4444"
+                              }}>
+                        <option value="open">Abierto</option>
+                        <option value="in_progress">En Proceso</option>
+                        <option value="resolved">Resuelto</option>
+                        <option value="cancelled">Cancelado</option>
+                      </select>
+                      <button onClick={() => setConfirmDeleteId(t.id)} className="hov p-1 rounded text-neutral-400 hover:text-[var(--danger, #ef4444)] transition" title="Eliminar permanentemente">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: T.ink }}>{t.description}</p>
+                  
+                  <div className="text-[11px] pt-2 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1" style={{ borderColor: T.border, color: T.muted }}>
+                    <span>Enviado por: <strong style={{ color: T.ink }}>{t.user_email}</strong></span>
+                    <span>Fecha: {new Date(t.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contenido: Usuarios */}
+      {adminTab === "users" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p className="text-xs" style={{ color: T.muted }}>Busca perfiles de usuarios registrados para administrar sus accesos o suspender cuentas.</p>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-neutral-400" />
+              <input type="text" placeholder="Buscar por correo..." value={searchEmail} onChange={e => setSearchEmail(e.target.value)}
+                     className="w-full rounded-lg border pl-9 pr-3 py-1.5 text-xs outline-none" style={{ borderColor: T.border, background: T.sidebar, color: T.ink }} />
+            </div>
+          </div>
+
+          <div className="border rounded-2xl overflow-hidden shadow-sm" style={{ borderColor: T.border, background: T.sidebar }}>
+            {usersLoading ? (
+              <div className="text-center py-10 text-xs" style={{ color: T.muted }}><Loader2 size={20} className="animate-spin inline mr-2" /> Cargando lista de usuarios...</div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-10 text-xs italic" style={{ color: T.muted }}>No se encontraron perfiles de usuario.</div>
+            ) : (
+              <div className="divide-y" style={{ borderColor: T.border }}>
+                {filteredUsers.map(u => (
+                  <div key={u.id} className="flex items-center justify-between gap-4 p-4 hover:bg-[var(--accent-soft)]/20 transition">
+                    <div className="min-w-0 text-left">
+                      <span className="block text-xs font-semibold truncate" style={{ color: T.ink }} title={u.email}>{u.email}</span>
+                      <span className="text-[10px] block mt-0.5" style={{ color: T.muted }}>Rol: <strong className="capitalize">{u.role}</strong> · Registrado: {new Date(u.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div>
+                      {u.id !== user.id ? (
+                        <button onClick={() => toggleBlockUser(u.id, u.is_blocked)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-white transition hover:brightness-105 active:scale-[0.98] shadow-sm"
+                                style={{ background: u.is_blocked ? T.accent : "var(--danger)" }}>
+                          {u.is_blocked ? "Restaurar Acceso" : "Suspender Cuenta"}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2.5 py-1 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">Tú (Admin)</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contenido: Anuncios */}
+      {adminTab === "broadcast" && (
+        <div className="max-w-xl text-left space-y-4">
+          <p className="text-xs" style={{ color: T.muted }}>Crea un aviso de difusión global. Aparecerá en tiempo real en el encabezado de todos los usuarios activos de la plataforma.</p>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: T.muted }}>Contenido del anuncio</label>
+              <textarea rows={3} placeholder="Ej. ¡Lanzamos la versión 2.0! Revisa el nuevo calendario." value={annContent} onChange={e => setAnnContent(e.target.value)}
+                        className="w-full rounded-xl border px-3 py-2 text-[13px] outline-none transition resize-none shadow-sm"
+                        style={{ borderColor: T.border, background: T.sidebar, color: T.ink }} />
+            </div>
+
+            <div className="flex items-center gap-2 select-none cursor-pointer p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/40" onClick={() => setAnnActive(!annActive)}>
+              <input type="checkbox" checked={annActive} readOnly className="rounded cursor-pointer" />
+              <span className="text-xs font-medium" style={{ color: T.ink }}>Habilitar anuncio inmediatamente</span>
+            </div>
+
+            {/* Vista Previa del Anuncio */}
+            {annContent.trim() && (
+              <div className="p-3 rounded-lg border text-xs" style={{ borderColor: T.border, background: T.sidebar }}>
+                <span className="block text-[10px] uppercase font-bold tracking-wider mb-1" style={{ color: T.muted }}>Vista previa del banner:</span>
+                <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-[var(--accent-soft)] text-[var(--accent)] border" style={{ borderColor: T.border }}>
+                  <span className="font-semibold truncate">📢 {annContent}</span>
+                  <span className="opacity-60 text-[10px]">✕</span>
+                </div>
+              </div>
+            )}
+
+            <button onClick={handleSaveAnnouncement} disabled={annSending} className="w-full py-2.5 rounded-lg text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shadow"
+                    style={{ background: T.accent }}>
+              {annSending ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />} 
+              {annSending ? "Publicando..." : "Publicar Anuncio Global"}
+            </button>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Cuadro de diálogo Modal personalizado para confirmación de eliminación */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setConfirmDeleteId(null)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left"
+               style={{ background: "var(--card, #1e1e1e)", borderColor: "var(--border)", color: "var(--ink)" }}>
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950/20 text-[var(--danger, #ef4444)]">
+                <AlertCircle size={20} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-serif text-base font-bold">¿Eliminar reporte?</h3>
+                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Esta acción no se puede deshacer. Se borrará permanentemente de la base de datos.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setConfirmDeleteId(null)} className="hov px-4 py-2 rounded-lg text-xs font-semibold border transition" style={{ borderColor: "var(--border)", color: "var(--ink)" }}>
+                Cancelar
+              </button>
+              <button onClick={() => { deleteTicketConfirm(confirmDeleteId); setConfirmDeleteId(null); }} className="px-4 py-2 rounded-lg text-xs font-semibold text-white shadow transition hover:brightness-105 active:scale-[0.98]" style={{ background: "var(--danger, #ef4444)" }}>
+                Eliminar ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+
+
+/* ================= Vista Papelera ================= */
+function TrashView({ pages, order, onRestore, onDelete, onEmpty }) {
+  const trashed = order.filter(id => pages[id]?.deletedAt);
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const daysLeft = (deletedAt) => {
+    const elapsed = now - new Date(deletedAt).getTime();
+    return Math.max(0, Math.ceil((THIRTY_DAYS_MS - elapsed) / (24 * 60 * 60 * 1000)));
+  };
+  const badgeStyle = (days) => {
+    if (days > 14) return { bg: 'rgba(16,185,129,0.12)', color: '#10b981' };
+    if (days > 6)  return { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' };
+    return { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+  };
+  return (
+    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-14 sm:px-8">
+      <div className="mb-6 flex items-center gap-3">
+        <div>
+          <h1 className="font-serif text-2xl font-bold">Papelera</h1>
+          <p className="text-[12px] mt-0.5" style={{ color: T.muted }}>Las p�ginas se eliminan definitivamente despu�s de 30 d�as.</p>
+        </div>
+        {trashed.length > 0 && (<button onClick={onEmpty} className="ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition" style={{ borderColor: 'var(--danger,#ef4444)', color: 'var(--danger,#ef4444)' }}><Trash2 size={13} /> Vaciar papelera</button>)}
+      </div>
+      {trashed.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+          <div className="text-5xl">???</div>
+          <p className="font-serif text-lg font-semibold" style={{ color: T.ink }}>La papelera est� vac�a</p>
+          <p className="text-sm" style={{ color: T.muted }}>Las p�ginas que elimines aparecer�n aqu� durante 30 d�as.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {trashed.map(id => {
+            const pg = pages[id];
+            const days = daysLeft(pg.deletedAt);
+            const badge = badgeStyle(days);
+            const deletedDate = new Date(pg.deletedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+            return (
+              <div key={id} className="group flex items-center gap-3 rounded-xl border px-4 py-3 transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
+                <span className="text-2xl flex-shrink-0">{pg.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-semibold" style={{ color: T.ink }}>{pg.title || 'Sin t�tulo'}</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>Eliminada el {deletedDate}</p>
+                </div>
+                <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: badge.bg, color: badge.color }}>{days === 0 ? 'Hoy' : days + 'd restantes'}</span>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button onClick={() => onRestore(id)} title="Restaurar" className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition" style={{ borderColor: T.accent, color: T.accent, background: T.accentSoft }}><RotateCcw size={12} /> Restaurar</button>
+                  <button onClick={() => onDelete(id)} title="Eliminar definitivamente" className="rounded-lg border p-1.5 transition" style={{ borderColor: T.border, color: 'var(--danger,#ef4444)' }}><Trash2 size={13} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
