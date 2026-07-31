@@ -1892,7 +1892,11 @@ function ShareModal({ page, user, onClose, showToast }) {
       loadShares();
     } catch (err) {
       console.error("Error al compartir página:", err);
-      if (showToast) showToast("No se pudo invitar al usuario. Revisa la conexión.", "error");
+      if (err?.code === "42501") {
+        if (showToast) showToast("Permiso denegado por política de seguridad RLS en Supabase.", "error");
+      } else {
+        if (showToast) showToast("No se pudo invitar al usuario. Revisa la conexión.", "error");
+      }
     } finally {
       setInviting(false);
     }
