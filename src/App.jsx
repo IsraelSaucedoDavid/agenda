@@ -394,21 +394,7 @@ export default function App() {
           .eq("shared_with_email", userEmail);
 
         if (!error && shares) {
-          setSharedPages(shares);
-          const validSharedIds = new Set(shares.map(s => s.page_id));
-
-          // Limpiar de la memoria local cualquier página compartida cuyo acceso fue revocado
-          setPages(prev => {
-            const next = { ...prev };
-            let cleaned = false;
-            Object.keys(next).forEach(pid => {
-              if (next[pid]?.isShared && !validSharedIds.has(pid)) {
-                delete next[pid];
-                cleaned = true;
-              }
-            });
-            return cleaned ? next : prev;
-          });
+          const activeShares = [];
 
           // Cargar el contenido de las páginas compartidas desde el workspace del propietario
           for (const sp of shares) {
@@ -421,6 +407,13 @@ export default function App() {
 
               if (wsData?.pages && wsData.pages[sp.page_id]) {
                 const ownerPage = wsData.pages[sp.page_id];
+                // Si la página fue eliminada por el propietario (deletedAt), omitirla
+                if (ownerPage.deletedAt) {
+                  setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
+                  continue;
+                }
+
+                activeShares.push(sp);
                 setPages(p => ({
                   ...p,
                   [sp.page_id]: {
@@ -446,11 +439,16 @@ export default function App() {
                     ...prev
                   ];
                 });
+              } else {
+                // Si la página ya no existe en el workspace del propietario, limpiarla
+                setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
               }
             } catch (wsErr) {
               console.warn("No se pudo leer workspace del propietario directamente:", wsErr);
             }
           }
+
+          setSharedPages(activeShares);
         }
       } catch (err) {
         console.error("Error al cargar invitaciones compartidas:", err);
@@ -590,12 +588,13 @@ export default function App() {
   };
 
   // --- Soft delete: marca con deletedAt en lugar de borrar físicamente ---
-  const softDeletePage = (id) => {
+  const softDeletePage = async (id) => {
     const now = new Date().toISOString();
+    const toTrash = new Set([id]);
+
     setPages(p => {
       const next = { ...p };
       // Recopila la página y todas sus sub-páginas recursivamente
-      const toTrash = new Set([id]);
       let changed = true;
       while (changed) {
         changed = false;
@@ -608,10 +607,44 @@ export default function App() {
       toTrash.forEach(x => { if (next[x]) next[x] = { ...next[x], deletedAt: now }; });
       return next;
     });
+
+    // Eliminar relaciones de compartir y notificar a colaboradores
+    if (supabase) {
+      try {
+        const trashArray = Array.from(toTrash);
+        const { data: shares } = await supabase
+          .from("page_shares")
+          .select("shared_with_email, page_id")
+          .in("page_id", trashArray);
+
+        if (shares && shares.length > 0) {
+          shares.forEach(sp => {
+            try {
+              const notifChan = supabase.channel(`user_notifs:${sp.shared_with_email.toLowerCase()}`);
+              notifChan.subscribe(async (status) => {
+                if (status === "SUBSCRIBED") {
+                  await notifChan.send({
+                    type: "broadcast",
+                    event: "page_access_revoked",
+                    payload: { pageId: sp.page_id, pageTitle: pages[sp.page_id]?.title || "Sin título" }
+                  });
+                  setTimeout(() => notifChan.unsubscribe(), 1000);
+                }
+              });
+            } catch { /* ignore */ }
+          });
+        }
+
+        await supabase.from("page_shares").delete().in("page_id", trashArray);
+      } catch (err) {
+        console.warn("Error al revocar accesos en Supabase al mover a papelera:", err);
+      }
+    }
+
     // Si la página activa fue a la papelera, navega a otra
     setCurrentId(cur => {
-      if (cur === id) {
-        const alive = order.filter(pid => pid !== id && !pages[pid]?.deletedAt);
+      if (toTrash.has(cur)) {
+        const alive = order.filter(pid => !toTrash.has(pid) && !pages[pid]?.deletedAt);
         return alive[0] || null;
       }
       return cur;
@@ -1381,7 +1414,8 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
             <Users size={12} /> Compartidas conmigo
           </p>
           {sharedPages.map(sp => {
-            const pg = pages[sp.page_id] || { id: sp.page_id, title: `Página de ${sp.shared_with_email}`, icon: "📄" };
+            const pg = pages[sp.page_id];
+            if (!pg || pg.deletedAt) return null;
             return (
               <PageRow key={sp.id} pg={pg} depth={0} active={sp.page_id === currentId && view === "docs"}
                        hasKids={false} open={false} onClick={() => selectPage(sp.page_id)} />
