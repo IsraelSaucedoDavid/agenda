@@ -450,6 +450,8 @@ export default function App() {
         .select("*")
         .eq("shared_with_email", userEmail);
 
+      console.log("DEBUG: fetchSharedPages querying for:", userEmail, "Result shares:", shares, "Error:", error);
+
       if (!error && shares) {
         const activeShares = [];
         const pageUpdates = {};
