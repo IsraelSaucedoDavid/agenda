@@ -468,17 +468,24 @@ export default function App() {
                 .eq("user_id", sp.owner_id)
                 .maybeSingle();
 
-              console.log(`DEBUG: Owner workspace query for ${sp.owner_id} (Page: ${sp.page_id}):`, { wsData, wsError });
+              const exists = !!(wsData?.pages && wsData.pages[sp.page_id]);
+              const ownerPage = exists ? wsData.pages[sp.page_id] : null;
+              const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
 
-              if (wsData?.pages && wsData.pages[sp.page_id]) {
-                const ownerPage = wsData.pages[sp.page_id];
+              console.log(`DEBUG: Owner workspace query for ${sp.owner_id} (Page: ${sp.page_id}):`, { 
+                existsInOwnerWorkspace: exists,
+                ownerPageTitle: ownerPage?.title,
+                ownerPageDeletedAt: ownerPage?.deletedAt,
+                shareStatus: sp.status,
+                isAccepted: isAccepted,
+                wsError 
+              });
 
+              if (exists && ownerPage) {
                 if (ownerPage.deletedAt) {
                   pagesToDelete.push(sp.page_id);
                   return;
                 }
-
-                const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
 
                 if (!isAccepted) {
                   newNotifs.push({
