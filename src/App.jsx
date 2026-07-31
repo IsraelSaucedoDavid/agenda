@@ -328,6 +328,8 @@ export default function App() {
     }
   }, [user]);
 
+  const lastUserId = useRef(null);
+
   /* --- carga de contenido --- */
   useEffect(() => {
     if (authLoading) return;
@@ -336,9 +338,19 @@ export default function App() {
       setOrder([]);
       setCurrentId(null);
       setLoading(false);
+      lastUserId.current = null;
       return;
     }
 
+    // Si es el mismo usuario (evita refrescos por onAuthStateChange al cambiar de ventana),
+    // no re-inicializar el estado local para no borrar temporalmente páginas compartidas.
+    if (lastUserId.current === user.id) {
+      const localData = store.load(user.id);
+      syncWithServer(localData, user);
+      return;
+    }
+
+    lastUserId.current = user.id;
     setLoading(true);
     const localData = store.load(user.id);
     if (localData && localData.order?.length) {
