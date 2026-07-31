@@ -5,7 +5,7 @@ import {
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
-  BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2
+  BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -103,6 +103,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
+  const [sharedPages, setSharedPages] = useState([]);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [newTicketAlert, setNewTicketAlert] = useState(null);
   const [toast, setToast] = useState(null); // { text, type: "success" | "error" }
@@ -366,7 +367,28 @@ export default function App() {
     fetchActiveAnnouncement();
   }, [user]);
 
-  /* --- carga y escucha en tiempo real de tickets de soporte para admin --- */
+  /* --- carga de páginas compartidas conmigo --- */
+  useEffect(() => {
+    if (!user || !supabase) {
+      setSharedPages([]);
+      return;
+    }
+    const fetchSharedPages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("page_shares")
+          .select("*")
+          .eq("shared_with_email", user.email?.toLowerCase());
+
+        if (!error && data) {
+          setSharedPages(data);
+        }
+      } catch {
+        /* Fallback silencioso si aún no existe la tabla */
+      }
+    };
+    fetchSharedPages();
+  }, [user]);
   useEffect(() => {
     if (profile?.role !== "admin") {
       setOpenTicketsCount(0);
@@ -850,7 +872,7 @@ export default function App() {
               </div>
             ) : (
               <Tree roots={roots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
-                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage} deletePage={softDeletePage} />
+                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage} deletePage={softDeletePage} sharedPages={sharedPages} />
             )}
           </nav>
 
@@ -1182,7 +1204,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
 }
 
 /* ================= Árbol lateral ================= */
-function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage }) {
+function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages }) {
   const render = (id, depth) => {
     const pg = pages[id]; if (!pg) return null;
     const kids = childrenOf(id); const open = expanded[id];
@@ -1196,8 +1218,32 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
       </div>
     );
   };
-  if (roots.length === 0) return <p className="px-2 pt-2 text-[13px]" style={{ color: T.muted }}>Aún no hay páginas.</p>;
-  return <div className="pt-1">{roots.map(r => render(r, 0))}</div>;
+
+  return (
+    <div className="pt-1">
+      {roots.length === 0 ? (
+        <p className="px-2 pt-2 text-[13px]" style={{ color: T.muted }}>Aún no hay páginas.</p>
+      ) : (
+        roots.map(r => render(r, 0))
+      )}
+
+      {/* Sección Compartidas conmigo */}
+      {sharedPages && sharedPages.length > 0 && (
+        <div className="mt-4 border-t pt-3" style={{ borderColor: T.border }}>
+          <p className="px-2 mb-1 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: T.accent }}>
+            <Users size={12} /> Compartidas conmigo
+          </p>
+          {sharedPages.map(sp => {
+            const pg = pages[sp.page_id] || { id: sp.page_id, title: `Página de ${sp.shared_with_email}`, icon: "📄" };
+            return (
+              <PageRow key={sp.id} pg={pg} depth={0} active={sp.page_id === currentId && view === "docs"}
+                       hasKids={false} open={false} onClick={() => selectPage(sp.page_id)} />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub, onDelete }) {
@@ -1630,9 +1676,64 @@ function AgendaView({ todos, gotoTask, toggleDone, quickAdd }) {
 function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showToast, user }) {
   const [focusId, setFocusId] = useState(null);
   const [pickIcon, setPickIcon] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const channelRef = useRef(null);
 
   const setBlocks = (blocks) => updatePage(page.id, { blocks });
-  const changeBlock = (id, patch) => updateBlockInPage(page.id, id, patch);
+  const changeBlock = (id, patch) => {
+    updateBlockInPage(page.id, id, patch);
+    // Broadcast el cambio en tiempo real a otros clientes
+    if (channelRef.current && supabase) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "block_change",
+        payload: { blockId: id, patch, userId: user?.id }
+      });
+    }
+  };
+
+  // Suscripción Realtime a Presence y Broadcast para la página activa
+  useEffect(() => {
+    if (!supabase || !page?.id || !user) return;
+
+    const channel = supabase.channel(`page:${page.id}`, {
+      config: { presence: { key: user.id } }
+    });
+
+    channelRef.current = channel;
+
+    channel
+      .on("broadcast", { event: "block_change" }, ({ payload }) => {
+        if (payload.userId !== user.id) {
+          updateBlockInPage(page.id, payload.blockId, payload.patch);
+        }
+      })
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const usersList = [];
+        Object.values(state).forEach(presences => {
+          presences.forEach(p => {
+            if (p.email) usersList.push(p);
+          });
+        });
+        setOnlineUsers(usersList);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            userId: user.id,
+            email: user.email,
+            onlineAt: new Date().toISOString()
+          });
+        }
+      });
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [page?.id, user, updateBlockInPage]);
 
   const insertAfter = (id, block) => {
     const i = page.blocks.findIndex(b => b.id === id);
@@ -1650,6 +1751,23 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-40 pt-14 sm:px-12">
+      {/* Indicador de Usuarios Conectados en Tiempo Real */}
+      {onlineUsers.length > 1 && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs animate-in fade-in duration-200"
+             style={{ borderColor: T.border, background: T.sidebar }}>
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-semibold" style={{ color: T.ink }}>Colaborando en vivo:</span>
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {onlineUsers.map((u, i) => (
+              <span key={i} className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                    style={{ background: u.userId === user?.id ? T.accentSoft : T.bg, color: u.userId === user?.id ? T.accent : T.ink }}>
+                {u.email === user?.email ? "Tú" : u.email}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="relative mb-1">
         <button onClick={() => setPickIcon(v => !v)} className="hov mb-2 rounded-lg px-1 text-5xl">{page.icon}</button>
         {pickIcon && (
@@ -1673,6 +1791,9 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
           </span>
         )}
         <div className="ml-auto flex gap-1">
+          <button onClick={() => setShareOpen(true)} className="hov flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold text-[var(--accent)] bg-[var(--accent-soft)] transition cursor-pointer">
+            <Share2 size={13} /> Compartir
+          </button>
           <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
           <button onClick={() => { if (confirm("¿Borrar esta página?")) onDelete(); }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
         </div>
@@ -1690,6 +1811,169 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
       </div>
 
       <div onClick={() => insertAfter(page.blocks[page.blocks.length - 1].id, emptyBlock())} className="mt-1 h-24 cursor-text" />
+
+      {/* Modal para Compartir Página */}
+      {shareOpen && (
+        <ShareModal page={page} user={user} onClose={() => setShareOpen(false)} showToast={showToast} />
+      )}
+    </div>
+  );
+}
+
+/* ================= Modal de Compartir ================= */
+function ShareModal({ page, user, onClose, showToast }) {
+  const [email, setEmail] = useState("");
+  const [permission, setPermission] = useState("edit");
+  const [shares, setShares] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+
+  const loadShares = useCallback(async () => {
+    if (!supabase || !page?.id) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from("page_shares")
+        .select("*")
+        .eq("page_id", page.id);
+
+      if (!error && data) {
+        setShares(data);
+      }
+    } catch {
+      /* Fallback elegante si la tabla aún se está aprovisionando en Supabase */
+    } finally {
+      setLoading(false);
+    }
+  }, [page?.id]);
+
+  useEffect(() => {
+    loadShares();
+  }, [loadShares]);
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || !page?.id || !user) return;
+    setInviting(true);
+
+    try {
+      if (supabase) {
+        const { error } = await supabase
+          .from("page_shares")
+          .upsert({
+            page_id: page.id,
+            owner_id: user.id,
+            shared_with_email: email.trim().toLowerCase(),
+            permission
+          }, { onConflict: "page_id, shared_with_email" });
+
+        if (error) throw error;
+      }
+
+      if (showToast) showToast(`Invitación enviada a ${email}`);
+      setEmail("");
+      loadShares();
+    } catch (err) {
+      console.error("Error al compartir página:", err);
+      if (showToast) showToast("No se pudo invitar al usuario. Revisa la conexión.", "error");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRevoke = async (shareId, shareEmail) => {
+    try {
+      if (supabase && shareId) {
+        await supabase.from("page_shares").delete().eq("id", shareId);
+      }
+      setShares(s => s.filter(item => item.id !== shareId));
+      if (showToast) showToast(`Acceso revocado a ${shareEmail}`);
+    } catch {
+      if (showToast) showToast("Error al revocar acceso", "error");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-md rounded-2xl border p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 text-left"
+           style={{ background: T.sidebar, borderColor: T.border, color: T.ink }}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
+              <Share2 size={16} />
+            </span>
+            <div>
+              <h2 className="font-serif text-base font-bold">Compartir página</h2>
+              <p className="text-[11px] truncate max-w-[200px]" style={{ color: T.muted }}>{page.title || "Sin título"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
+        </div>
+
+        {/* Formulario de Invitación */}
+        <form onSubmit={handleInvite} className="mb-5 space-y-3">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: T.muted }}>
+              Correo del colaborador
+            </label>
+            <div className="flex gap-2">
+              <input type="email" required placeholder="correo@ejemplo.com" value={email} onChange={e => setEmail(e.target.value)}
+                     className="flex-1 rounded-xl border px-3 py-2 text-xs outline-none transition"
+                     style={{ borderColor: T.border, background: T.bg, color: T.ink }} />
+              <select value={permission} onChange={e => setPermission(e.target.value)}
+                      className="rounded-xl border px-2 py-2 text-xs outline-none cursor-pointer"
+                      style={{ borderColor: T.border, background: T.bg, color: T.ink }}>
+                <option value="edit">Puede editar</option>
+                <option value="view">Solo ver</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" disabled={inviting} className="w-full py-2.5 rounded-xl text-xs font-semibold text-white shadow transition flex items-center justify-center gap-1.5 hover:brightness-105 active:scale-[0.98]"
+                  style={{ background: T.accent }}>
+            {inviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+            {inviting ? "Enviando..." : "Invitar colaborador"}
+          </button>
+        </form>
+
+        {/* Lista de Colaboradores */}
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: T.muted }}>Personas con acceso</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {/* Propietario */}
+            <div className="flex items-center justify-between rounded-xl border p-2.5 text-xs" style={{ borderColor: T.border, background: T.bg }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)] font-bold text-[10px]">P</span>
+                <span className="truncate font-medium">{user?.email}</span>
+              </div>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-neutral-100 dark:bg-neutral-800" style={{ color: T.muted }}>Propietario</span>
+            </div>
+
+            {/* Lista de invitados */}
+            {loading ? (
+              <p className="text-[11px] py-2 text-center" style={{ color: T.muted }}>Cargando colaboradores...</p>
+            ) : shares.length === 0 ? (
+              <p className="text-[11px] py-2 text-center" style={{ color: T.muted }}>Aún no has invitado a nadie a esta página.</p>
+            ) : (
+              shares.map(item => (
+                <div key={item.id} className="flex items-center justify-between rounded-xl border p-2.5 text-xs" style={{ borderColor: T.border, background: T.bg }}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 font-bold text-[10px]">C</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{item.shared_with_email}</p>
+                      <p className="text-[9px]" style={{ color: T.muted }}>{item.permission === "edit" ? "Puede editar" : "Solo ver"}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleRevoke(item.id, item.shared_with_email)} className="text-[10px] font-semibold text-[var(--danger,#ef4444)] hover:underline cursor-pointer">
+                    Revocar
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
