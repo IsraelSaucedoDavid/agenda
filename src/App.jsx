@@ -2221,16 +2221,28 @@ function ShareModal({ page, user, onClose, showToast }) {
 
         let insertedShare = null;
         if (existing) {
-          const { data: updatedData, error: updateErr } = await supabase
+          let { data: updatedData, error: updateErr } = await supabase
             .from("page_shares")
             .update({ permission, status: "pending" })
             .eq("id", existing.id)
             .select()
             .single();
+
+          if (updateErr && (updateErr.code === "PGRST204" || updateErr.message?.includes("status"))) {
+            const { data: retryUpd, error: retryErr } = await supabase
+              .from("page_shares")
+              .update({ permission })
+              .eq("id", existing.id)
+              .select()
+              .single();
+            if (retryErr) throw retryErr;
+            updatedData = retryUpd;
+            updateErr = null;
+          }
           if (updateErr) throw updateErr;
           insertedShare = updatedData;
         } else {
-          const { data: insertedData, error: insertErr } = await supabase
+          let { data: insertedData, error: insertErr } = await supabase
             .from("page_shares")
             .insert({
               page_id: page.id,
@@ -2241,6 +2253,22 @@ function ShareModal({ page, user, onClose, showToast }) {
             })
             .select()
             .single();
+
+          if (insertErr && (insertErr.code === "PGRST204" || insertErr.message?.includes("status"))) {
+            const { data: retryIns, error: retryErr } = await supabase
+              .from("page_shares")
+              .insert({
+                page_id: page.id,
+                owner_id: user.id,
+                shared_with_email: targetEmail,
+                permission
+              })
+              .select()
+              .single();
+            if (retryErr) throw retryErr;
+            insertedData = retryIns;
+            insertErr = null;
+          }
           if (insertErr) throw insertErr;
           insertedShare = insertedData;
         }
