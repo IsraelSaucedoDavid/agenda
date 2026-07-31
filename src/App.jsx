@@ -114,10 +114,19 @@ export default function App() {
     } catch { return []; }
   });
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [acceptedShares, setAcceptedShares] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("orbita:accepted_shares") || "[]");
+    } catch { return []; }
+  });
 
   useEffect(() => {
     try { localStorage.setItem("orbita:notifications", JSON.stringify(notifications)); } catch { /* ignore */ }
   }, [notifications]);
+
+  useEffect(() => {
+    try { localStorage.setItem("orbita:accepted_shares", JSON.stringify(acceptedShares)); } catch { /* ignore */ }
+  }, [acceptedShares]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -407,12 +416,41 @@ export default function App() {
 
               if (wsData?.pages && wsData.pages[sp.page_id]) {
                 const ownerPage = wsData.pages[sp.page_id];
+
                 // Si la página fue eliminada por el propietario (deletedAt), omitirla
                 if (ownerPage.deletedAt) {
                   setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
                   continue;
                 }
 
+                // Verificar si la invitación ha sido ACEPTADA
+                const isAccepted = sp.status === "accepted" || acceptedShares.includes(sp.id);
+
+                if (!isAccepted) {
+                  // Si aún está PENDIENTE de aprobación, NO agregarla a la barra lateral ni abrirla
+                  setNotifications(prev => {
+                    if (prev.some(n => n.shareId === sp.id)) return prev;
+                    return [
+                      {
+                        id: `invite:${sp.id}`,
+                        type: "page_invite",
+                        shareId: sp.id,
+                        pageId: sp.page_id,
+                        pageTitle: ownerPage.title || "Sin título",
+                        ownerEmail: sp.owner_email || "Un usuario",
+                        title: "📩 ¡Nueva invitación a colaborar!",
+                        body: `Te invitaron a colaborar en "${ownerPage.title || "Sin título"}"`,
+                        status: "pending",
+                        read: false,
+                        createdAt: sp.created_at || new Date().toISOString()
+                      },
+                      ...prev
+                    ];
+                  });
+                  continue;
+                }
+
+                // Solo si está ACEPTADA se incluye en las páginas activas
                 activeShares.push(sp);
                 setPages(p => ({
                   ...p,
@@ -422,23 +460,6 @@ export default function App() {
                     permission: sp.permission
                   }
                 }));
-
-                // Generar notificación local si es nueva
-                setNotifications(prev => {
-                  if (prev.some(n => n.id === `share:${sp.id}`)) return prev;
-                  return [
-                    {
-                      id: `share:${sp.id}`,
-                      type: "page_shared",
-                      title: "¡Página compartida contigo!",
-                      body: `Te compartieron la página "${ownerPage.title || "Sin título"}"`,
-                      pageId: sp.page_id,
-                      read: false,
-                      createdAt: sp.created_at || new Date().toISOString()
-                    },
-                    ...prev
-                  ];
-                });
               } else {
                 // Si la página ya no existe en el workspace del propietario, limpiarla
                 setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
@@ -1176,16 +1197,26 @@ export default function App() {
                            }}
                            onAcceptInvite={async (n) => {
                              try {
+                               if (n.shareId) {
+                                 setAcceptedShares(prev => Array.from(new Set([...prev, n.shareId])));
+                               }
                                if (supabase && n.shareId) {
-                                 await supabase
-                                   .from("page_shares")
-                                   .update({ status: "accepted" })
-                                   .eq("id", n.shareId);
+                                 try {
+                                   await supabase
+                                     .from("page_shares")
+                                     .update({ status: "accepted" })
+                                     .eq("id", n.shareId);
+                                 } catch { /* ignore if status col missing */ }
                                }
                                setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, status: "accepted", read: true } : item));
                                showToast("¡Invitación aceptada!");
-                               if (n.pageId) selectPage(n.pageId);
                                setNotifPanelOpen(false);
+
+                               // Refrescar páginas compartidas para cargar la nueva página aceptada
+                               setTimeout(() => {
+                                 fetchSharedPages();
+                                 if (n.pageId) selectPage(n.pageId);
+                               }, 100);
 
                                // Notificar al propietario
                                if (supabase && n.ownerEmail) {
@@ -1211,6 +1242,9 @@ export default function App() {
                            }}
                            onDeclineInvite={async (n) => {
                              try {
+                               if (n.shareId) {
+                                 setAcceptedShares(prev => prev.filter(id => id !== n.shareId));
+                               }
                                if (supabase && n.shareId) {
                                  await supabase.from("page_shares").delete().eq("id", n.shareId);
                                }
