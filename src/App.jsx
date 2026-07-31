@@ -4,7 +4,8 @@ import {
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle,
-  Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw
+  Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
+  BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -827,6 +828,7 @@ export default function App() {
             <NavBtn id="docs" icon={FileText} label="Páginas" />
             <NavBtn id="calendar" icon={CalendarDays} label="Calendario" />
             <NavBtn id="agenda" icon={ListChecks} label="Agenda" />
+            <NavBtn id="analytics" icon={BarChart3} label="Analíticas" />
             {profile?.role === "admin" && (
               <NavBtn id="admin" icon={Shield} label="Admin" />
             )}
@@ -902,6 +904,8 @@ export default function App() {
           <CalendarView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
         ) : view === "agenda" ? (
           <AgendaView todos={allTodos} gotoTask={gotoTask} toggleDone={toggleDone} quickAdd={quickAdd} />
+        ) : view === "analytics" ? (
+          <AnalyticsView todos={allTodos} />
         ) : view === "trash" ? (
           <TrashView pages={pages} order={order} onRestore={(id) => { restorePage(id); showToast("Página restaurada"); }}
                      onDelete={(id) => { setConfirmDialog({ title: "¿Eliminar definitivamente?", message: "Esta acción es irreversible. La página y todo su contenido se perderá para siempre.", onConfirm: () => permanentDelete(id) }); }}
@@ -2716,6 +2720,251 @@ function TrashView({ pages, order, onRestore, onDelete, onEmpty }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ================= Vista de Analíticas y Productividad ================= */
+function AnalyticsView({ todos }) {
+  const total = todos.length;
+  const completedTodos = todos.filter(t => t.checked);
+  const completed = completedTodos.length;
+  const pending = total - completed;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  // 1. Cálculo de Streaks (Racha)
+  const { currentStreak, maxStreak } = useMemo(() => {
+    const datesSet = new Set();
+    completedTodos.forEach(t => {
+      const dateStr = t.completedAt ? toStr(new Date(t.completedAt)) : (t.date || todayStr());
+      datesSet.add(dateStr);
+    });
+
+    let streak = 0;
+    let checkDate = new Date();
+    let todayFormatted = toStr(checkDate);
+
+    if (!datesSet.has(todayFormatted)) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayFormatted = toStr(yesterday);
+      if (datesSet.has(yesterdayFormatted)) {
+        checkDate = yesterday;
+      }
+    }
+
+    while (datesSet.has(toStr(checkDate))) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    const sortedDates = Array.from(datesSet).sort();
+    let maxS = 0;
+    let tempS = 0;
+    let prevD = null;
+
+    sortedDates.forEach(dStr => {
+      if (!prevD) {
+        tempS = 1;
+      } else {
+        const dPrev = fromStr(prevD);
+        dPrev.setDate(dPrev.getDate() + 1);
+        if (toStr(dPrev) === dStr) {
+          tempS++;
+        } else {
+          tempS = 1;
+        }
+      }
+      prevD = dStr;
+      if (tempS > maxS) maxS = tempS;
+    });
+
+    return { currentStreak: streak, maxStreak: Math.max(streak, maxS) };
+  }, [completedTodos]);
+
+  // 2. Actividad de los últimos 7 días
+  const last7Days = useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dayStr = toStr(d);
+      const label = i === 0 ? "Hoy" : `${WEEK_S[(d.getDay() + 6) % 7]} ${d.getDate()}`;
+      
+      const count = completedTodos.filter(t => {
+        const cDate = t.completedAt ? toStr(new Date(t.completedAt)) : (t.date || "");
+        return cDate === dayStr;
+      }).length;
+
+      days.push({ dayStr, label, count, isToday: i === 0 });
+    }
+    return days;
+  }, [completedTodos]);
+
+  const maxCount7Days = Math.max(1, ...last7Days.map(d => d.count));
+
+  // 3. Sistema de Gamificación / Nivel
+  const levelInfo = useMemo(() => {
+    if (completed >= 100) return { title: "Maestro de la Órbita 👑", level: 5, progress: 100, target: 100 };
+    if (completed >= 50) return { title: "Imparable 🚀", level: 4, progress: Math.round(((completed - 50) / 50) * 100), target: 100 };
+    if (completed >= 25) return { title: "Constante 🔥", level: 3, progress: Math.round(((completed - 25) / 25) * 100), target: 50 };
+    if (completed >= 10) return { title: "Enfocado 🎯", level: 2, progress: Math.round(((completed - 10) / 15) * 100), target: 25 };
+    return { title: "Iniciado 📑", level: 1, progress: Math.round((completed / 10) * 100), target: 10 };
+  }, [completed]);
+
+  // 4. Desglose por etiquetas
+  const tagsStats = useMemo(() => {
+    const map = {};
+    todos.forEach(t => {
+      if (t.tags && t.tags.length > 0) {
+        t.tags.forEach(tag => {
+          if (!map[tag]) map[tag] = { total: 0, completed: 0 };
+          map[tag].total++;
+          if (t.checked) map[tag].completed++;
+        });
+      }
+    });
+    return Object.entries(map)
+      .map(([name, stat]) => ({
+        name,
+        total: stat.total,
+        completed: stat.completed,
+        pct: Math.round((stat.completed / stat.total) * 100)
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [todos]);
+
+  return (
+    <div className="mx-auto w-full max-w-4xl px-5 pb-24 pt-14 sm:px-8 animate-in fade-in duration-200">
+      <div className="mb-6">
+        <h1 className="font-serif text-2xl font-bold flex items-center gap-2">
+          <BarChart3 size={24} style={{ color: T.accent }} /> Productividad y Analíticas
+        </h1>
+        <p className="text-[13px] mt-0.5" style={{ color: T.muted }}>
+          Rastrea tu rendimiento, mantén tu racha de enfoque y alcanza nuevos niveles de organización.
+        </p>
+      </div>
+
+      {/* Grid de Métricas Principales */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-2xl border p-4 shadow-sm transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="flex items-center justify-between text-amber-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Racha Actual</span>
+            <Flame size={18} className="animate-pulse" />
+          </div>
+          <p className="text-2xl font-bold font-serif">{currentStreak} <span className="text-xs font-normal" style={{ color: T.muted }}>días</span></p>
+          <p className="text-[10px] mt-1" style={{ color: T.muted }}>Racha diaria consecutiva</p>
+        </div>
+
+        <div className="rounded-2xl border p-4 shadow-sm transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="flex items-center justify-between text-indigo-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Mejor Racha</span>
+            <Award size={18} />
+          </div>
+          <p className="text-2xl font-bold font-serif">{maxStreak} <span className="text-xs font-normal" style={{ color: T.muted }}>días</span></p>
+          <p className="text-[10px] mt-1" style={{ color: T.muted }}>Récord histórico</p>
+        </div>
+
+        <div className="rounded-2xl border p-4 shadow-sm transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="flex items-center justify-between text-emerald-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Tasa Éxito</span>
+            <TrendingUp size={18} />
+          </div>
+          <p className="text-2xl font-bold font-serif">{completionRate}%</p>
+          <p className="text-[10px] mt-1" style={{ color: T.muted }}>{completed} de {total} completadas</p>
+        </div>
+
+        <div className="rounded-2xl border p-4 shadow-sm transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div className="flex items-center justify-between text-sky-500 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider">Pendientes</span>
+            <Target size={18} />
+          </div>
+          <p className="text-2xl font-bold font-serif">{pending}</p>
+          <p className="text-[10px] mt-1" style={{ color: T.muted }}>Tareas activas por hacer</p>
+        </div>
+      </div>
+
+      {/* Gamificación: Nivel del Usuario */}
+      <div className="mb-6 rounded-2xl border p-5 shadow-sm" style={{ borderColor: T.border, background: T.sidebar }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.accent }}>Nivel {levelInfo.level} de Productividad</span>
+            <h3 className="font-serif text-lg font-bold">{levelInfo.title}</h3>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] font-bold text-lg">
+            <Zap size={20} />
+          </div>
+        </div>
+        <div className="w-full bg-[var(--card)] rounded-full h-3 overflow-hidden border" style={{ borderColor: T.border }}>
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${levelInfo.progress}%`, background: T.accent }} />
+        </div>
+        <div className="flex justify-between items-center mt-2 text-[11px]" style={{ color: T.muted }}>
+          <span>{completed} tareas completadas</span>
+          <span>{levelInfo.level < 5 ? `Siguiente nivel a las ${levelInfo.target} tareas` : "¡Nivel Máximo Alcanzado!"}</span>
+        </div>
+      </div>
+
+      {/* Gráficos y Desglose por Etiquetas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Actividad de los últimos 7 días */}
+        <div className="rounded-2xl border p-5 shadow-sm flex flex-col justify-between" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div>
+            <h3 className="font-serif text-sm font-bold mb-1">Actividad Semanal</h3>
+            <p className="text-[11px] mb-6" style={{ color: T.muted }}>Pendientes completados en los últimos 7 días</p>
+          </div>
+          <div className="flex items-end justify-between gap-2 h-36 pt-4 border-b pb-2" style={{ borderColor: T.border }}>
+            {last7Days.map(d => {
+              const heightPct = Math.round((d.count / maxCount7Days) * 100);
+              return (
+                <div key={d.dayStr} className="flex-1 flex flex-col items-center gap-1 group h-full justify-end">
+                  <span className="text-[10px] font-bold opacity-80 group-hover:opacity-100 transition" style={{ color: d.count > 0 ? T.accent : T.muted }}>
+                    {d.count > 0 ? d.count : ""}
+                  </span>
+                  <div className="w-full max-w-[28px] rounded-t-md transition-all duration-300 group-hover:brightness-110"
+                       style={{
+                         height: `${Math.max(8, heightPct)}%`,
+                         background: d.count > 0 ? (d.isToday ? T.accent : "var(--accent-soft)") : "var(--border)",
+                         borderTop: d.count > 0 ? `2px solid ${T.accent}` : "none"
+                       }} />
+                  <span className="text-[10px] truncate max-w-full font-medium" style={{ color: d.isToday ? T.accent : T.muted }}>
+                    {d.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desglose por Etiquetas (#Tags) */}
+        <div className="rounded-2xl border p-5 shadow-sm flex flex-col justify-between" style={{ borderColor: T.border, background: T.sidebar }}>
+          <div>
+            <h3 className="font-serif text-sm font-bold mb-1">Progreso por Etiquetas (#Tags)</h3>
+            <p className="text-[11px] mb-4" style={{ color: T.muted }}>Estado de avance según tus hashtags</p>
+          </div>
+          {tagsStats.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center" style={{ color: T.muted }}>
+              <span className="text-2xl mb-1">🏷️</span>
+              <p className="text-xs font-semibold">Sin etiquetas registradas</p>
+              <p className="text-[11px] mt-0.5">Agrega hashtags como #Trabajo o #Personal a tus tareas.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+              {tagsStats.map(tag => (
+                <div key={tag.name} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold" style={{ color: T.accent }}>#{tag.name}</span>
+                    <span className="text-[11px]" style={{ color: T.muted }}>{tag.completed}/{tag.total} ({tag.pct}%)</span>
+                  </div>
+                  <div className="w-full bg-[var(--card)] rounded-full h-2 overflow-hidden border" style={{ borderColor: T.border }}>
+                    <div className="h-full rounded-full transition-all duration-300" style={{ width: `${tag.pct}%`, background: T.accent }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
