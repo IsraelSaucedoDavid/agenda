@@ -1860,16 +1860,31 @@ function ShareModal({ page, user, onClose, showToast }) {
 
     try {
       if (supabase) {
-        const { error } = await supabase
+        const targetEmail = email.trim().toLowerCase();
+        const { data: existing } = await supabase
           .from("page_shares")
-          .upsert({
-            page_id: page.id,
-            owner_id: user.id,
-            shared_with_email: email.trim().toLowerCase(),
-            permission
-          }, { onConflict: "page_id, shared_with_email" });
+          .select("id")
+          .eq("page_id", page.id)
+          .eq("shared_with_email", targetEmail)
+          .maybeSingle();
 
-        if (error) throw error;
+        if (existing) {
+          const { error: updateErr } = await supabase
+            .from("page_shares")
+            .update({ permission })
+            .eq("id", existing.id);
+          if (updateErr) throw updateErr;
+        } else {
+          const { error: insertErr } = await supabase
+            .from("page_shares")
+            .insert({
+              page_id: page.id,
+              owner_id: user.id,
+              shared_with_email: targetEmail,
+              permission
+            });
+          if (insertErr) throw insertErr;
+        }
       }
 
       if (showToast) showToast(`Invitación enviada a ${email}`);
