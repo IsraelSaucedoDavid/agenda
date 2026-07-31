@@ -423,10 +423,11 @@ export default function App() {
               }
 
               // Verificar si la invitación ha sido ACEPTADA
-              const isAccepted = sp.status === "accepted" || acceptedShares.includes(sp.id);
+              // Si status es 'accepted', si status es nulo/desconocido (fallback) o si el id está aceptado localmente
+              const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
 
               if (!isAccepted) {
-                // Si aún está PENDIENTE de aprobación, NO agregarla a la barra lateral ni abrirla
+                // Si está explícitamente PENDIENTE y no aceptada aún, mostrar notificación
                 setNotifications(prev => {
                   if (prev.some(n => n.shareId === sp.id)) return prev;
                   return [
@@ -2106,6 +2107,22 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
     };
   }, [page?.id, user, updateBlockInPage, updatePage]);
 
+  const [collaborators, setCollaborators] = useState([]);
+
+  useEffect(() => {
+    if (!supabase || !page?.id) return;
+    const fetchCollabs = async () => {
+      try {
+        const { data } = await supabase
+          .from("page_shares")
+          .select("shared_with_email, permission, status")
+          .eq("page_id", page.id);
+        if (data) setCollaborators(data);
+      } catch { /* ignore */ }
+    };
+    fetchCollabs();
+  }, [page?.id]);
+
   const insertAfter = (id, block) => {
     const i = page.blocks.findIndex(b => b.id === id);
     const next = [...page.blocks]; next.splice(i + 1, 0, block); setBlocks(next); setFocusId(block.id);
@@ -2124,19 +2141,31 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-40 pt-14 sm:px-12">
-      {/* Indicador de Usuarios Conectados en Tiempo Real */}
-      {onlineUsers.length > 1 && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs animate-in fade-in duration-200"
+      {/* Indicador de Usuarios Compartidos y Conectados en Tiempo Real */}
+      {(collaborators.length > 0 || onlineUsers.length > 1) && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs animate-in fade-in duration-200 shadow-sm"
              style={{ borderColor: T.border, background: T.sidebar }}>
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-semibold" style={{ color: T.ink }}>Colaborando en vivo:</span>
+          <Users size={14} style={{ color: T.accent }} />
+          <span className="font-semibold" style={{ color: T.ink }}>
+            {onlineUsers.length > 1 ? "Colaborando en vivo:" : "Compartido con:"}
+          </span>
           <div className="flex items-center gap-1.5 overflow-x-auto">
             {onlineUsers.map((u, i) => (
-              <span key={i} className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+              <span key={`online-${i}`} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
                     style={{ background: u.userId === user?.id ? T.accentSoft : T.bg, color: u.userId === user?.id ? T.accent : T.ink }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 {u.email === user?.email ? "Tú" : u.email}
               </span>
             ))}
+            {collaborators
+              .filter(c => !onlineUsers.some(u => u.email?.toLowerCase() === c.shared_with_email?.toLowerCase()))
+              .map((c, i) => (
+                <span key={`collab-${i}`} className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                      style={{ background: T.bg, color: T.muted }}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" />
+                  {c.shared_with_email}
+                </span>
+              ))}
           </div>
         </div>
       )}
