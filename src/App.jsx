@@ -456,12 +456,18 @@ export default function App() {
                 ...p,
                 [sp.page_id]: {
                   ...ownerPage,
+                  // Quitar parentId para que la sub-página aparezca como entrada
+                  // independiente en la sección "Compartidas conmigo"
+                  parentId: undefined,
                   isShared: true,
                   isSharedWithMe: true,
                   ownerId: sp.owner_id,
                   permission: sp.permission
                 }
               }));
+              // Asegurar que el ID esté en el orden del usuario invitado
+              // (no se guardará en Supabase; solo es estado local en memoria)
+              setOrder(prev => prev.includes(sp.page_id) ? prev : [...prev, sp.page_id]);
             } else {
               // Si la página ya no existe en el workspace del propietario, limpiarla
               setPages(p => { const next = { ...p }; delete next[sp.page_id]; return next; });
@@ -623,7 +629,13 @@ export default function App() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const t = new Date().toISOString();
-      const payload = { pages, order, updatedAt: t };
+      // Filtrar las páginas compartidas-conmigo antes de guardar para que no
+      // contaminen el workspace propio del usuario en Supabase / localStorage
+      const ownPages = Object.fromEntries(
+        Object.entries(pages).filter(([, pg]) => !pg.isSharedWithMe)
+      );
+      const ownOrder = order.filter(id => !pages[id]?.isSharedWithMe);
+      const payload = { pages: ownPages, order: ownOrder, updatedAt: t };
       store.save(payload, user.id);
       
       clearTimeout(syncTimer.current);
