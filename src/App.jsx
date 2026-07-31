@@ -2659,8 +2659,6 @@ function AdminDashboardView({ user, profile, openTicketsCount, setOpenTicketsCou
   );
 }
 
-
-
 /* ================= Vista Papelera ================= */
 function TrashView({ pages, order, onRestore, onDelete, onEmpty }) {
   const trashed = order.filter(id => pages[id]?.deletedAt);
@@ -2671,24 +2669,28 @@ function TrashView({ pages, order, onRestore, onDelete, onEmpty }) {
     return Math.max(0, Math.ceil((THIRTY_DAYS_MS - elapsed) / (24 * 60 * 60 * 1000)));
   };
   const badgeStyle = (days) => {
-    if (days > 14) return { bg: 'rgba(16,185,129,0.12)', color: '#10b981' };
-    if (days > 6)  return { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b' };
-    return { bg: 'rgba(239,68,68,0.12)', color: '#ef4444' };
+    if (days > 14) return { bg: "rgba(16,185,129,0.12)", color: "#10b981" };
+    if (days > 6)  return { bg: "rgba(245,158,11,0.12)", color: "#f59e0b" };
+    return { bg: "rgba(239,68,68,0.12)", color: "#ef4444" };
   };
   return (
     <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-14 sm:px-8">
       <div className="mb-6 flex items-center gap-3">
         <div>
           <h1 className="font-serif text-2xl font-bold">Papelera</h1>
-          <p className="text-[12px] mt-0.5" style={{ color: T.muted }}>Las p�ginas se eliminan definitivamente despu�s de 30 d�as.</p>
+          <p className="text-[12px] mt-0.5" style={{ color: T.muted }}>Las páginas se eliminan definitivamente después de 30 días.</p>
         </div>
-        {trashed.length > 0 && (<button onClick={onEmpty} className="ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition" style={{ borderColor: 'var(--danger,#ef4444)', color: 'var(--danger,#ef4444)' }}><Trash2 size={13} /> Vaciar papelera</button>)}
+        {trashed.length > 0 && (
+          <button onClick={onEmpty} className="ml-auto flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition" style={{ borderColor: "var(--danger,#ef4444)", color: "var(--danger,#ef4444)" }}>
+            <Trash2 size={13} /> Vaciar papelera
+          </button>
+        )}
       </div>
       {trashed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
-          <div className="text-5xl">???</div>
-          <p className="font-serif text-lg font-semibold" style={{ color: T.ink }}>La papelera est� vac�a</p>
-          <p className="text-sm" style={{ color: T.muted }}>Las p�ginas que elimines aparecer�n aqu� durante 30 d�as.</p>
+          <div className="text-5xl">🗑️</div>
+          <p className="font-serif text-lg font-semibold" style={{ color: T.ink }}>La papelera está vacía</p>
+          <p className="text-sm" style={{ color: T.muted }}>Las páginas que elimines aparecerán aquí durante 30 días.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -2696,18 +2698,18 @@ function TrashView({ pages, order, onRestore, onDelete, onEmpty }) {
             const pg = pages[id];
             const days = daysLeft(pg.deletedAt);
             const badge = badgeStyle(days);
-            const deletedDate = new Date(pg.deletedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+            const deletedDate = new Date(pg.deletedAt).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
             return (
               <div key={id} className="group flex items-center gap-3 rounded-xl border px-4 py-3 transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
                 <span className="text-2xl flex-shrink-0">{pg.icon}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-semibold" style={{ color: T.ink }}>{pg.title || 'Sin t�tulo'}</p>
+                  <p className="truncate text-[14px] font-semibold" style={{ color: T.ink }}>{pg.title || "Sin título"}</p>
                   <p className="text-[11px] mt-0.5" style={{ color: T.muted }}>Eliminada el {deletedDate}</p>
                 </div>
-                <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: badge.bg, color: badge.color }}>{days === 0 ? 'Hoy' : days + 'd restantes'}</span>
+                <span className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: badge.bg, color: badge.color }}>{days === 0 ? "Hoy" : `${days}d restantes`}</span>
                 <div className="flex flex-shrink-0 items-center gap-1">
                   <button onClick={() => onRestore(id)} title="Restaurar" className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition" style={{ borderColor: T.accent, color: T.accent, background: T.accentSoft }}><RotateCcw size={12} /> Restaurar</button>
-                  <button onClick={() => onDelete(id)} title="Eliminar definitivamente" className="rounded-lg border p-1.5 transition" style={{ borderColor: T.border, color: 'var(--danger,#ef4444)' }}><Trash2 size={13} /></button>
+                  <button onClick={() => onDelete(id)} title="Eliminar definitivamente" className="rounded-lg border p-1.5 transition" style={{ borderColor: T.border, color: "var(--danger,#ef4444)" }}><Trash2 size={13} /></button>
                 </div>
               </div>
             );
