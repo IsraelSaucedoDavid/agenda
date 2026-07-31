@@ -460,32 +460,59 @@ export default function App() {
     // Escuchar notificaciones en tiempo real para este usuario
     const notifChannel = supabase.channel(`user_notifs:${userEmail}`);
     notifChannel
-      .on("broadcast", { event: "new_shared_page" }, ({ payload }) => {
-        const notifId = `realtime:${payload.pageId}:${Date.now()}`;
+      .on("broadcast", { event: "new_shared_page_invite" }, ({ payload }) => {
+        const notifId = `invite:${payload.shareId || Date.now()}`;
         setNotifications(prev => [
           {
             id: notifId,
-            type: "page_shared",
-            title: "👥 ¡Nueva página compartida!",
-            body: `${payload.ownerEmail} te compartió "${payload.title || "Sin título"}"`,
+            type: "page_invite",
+            shareId: payload.shareId,
             pageId: payload.pageId,
+            pageTitle: payload.pageTitle,
+            ownerEmail: payload.ownerEmail,
+            title: "📩 ¡Nueva invitación a colaborar!",
+            body: `${payload.ownerEmail} te invitó a colaborar en "${payload.pageTitle || "Sin título"}"`,
+            status: "pending",
             read: false,
             createdAt: new Date().toISOString()
           },
           ...prev
         ]);
 
-        // Notificación del sistema Web Push / Navegador
+        // Notificación nativa del sistema
         if ("Notification" in window && Notification.permission === "granted") {
           try {
-            new Notification("👥 Página compartida en Órbita", {
-              body: `${payload.ownerEmail} te compartió "${payload.title || "Sin título"}"`,
+            new Notification("📩 Invitación a colaborar en Órbita", {
+              body: `${payload.ownerEmail} te invitó a colaborar en "${payload.pageTitle || "Sin título"}"`,
               icon: "/icon-192.png"
             });
           } catch { /* ignore */ }
         }
 
         fetchSharedPages();
+      })
+      .on("broadcast", { event: "invite_response" }, ({ payload }) => {
+        const isAcc = payload.accepted;
+        setNotifications(prev => [
+          {
+            id: `resp:${Date.now()}`,
+            type: "invite_response",
+            title: isAcc ? "✅ Invitación Aceptada" : "❌ Invitación Rechazada",
+            body: isAcc
+              ? `${payload.responderEmail} aceptó tu invitación a "${payload.pageTitle}"`
+              : `${payload.responderEmail} rechazó tu invitación a "${payload.pageTitle}"`,
+            read: false,
+            createdAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        showToast(
+          isAcc
+            ? `✅ ${payload.responderEmail} aceptó tu invitación`
+            : `❌ ${payload.responderEmail} rechazó la invitación`,
+          isAcc ? "success" : "error"
+        );
       })
       .on("broadcast", { event: "page_access_revoked" }, ({ payload }) => {
         const revokedPageId = payload.pageId;
@@ -496,7 +523,20 @@ export default function App() {
           return next;
         });
         setCurrentId(cur => (cur === revokedPageId ? null : cur));
-        showToast(`Se ha revocado tu acceso a "${payload.pageTitle || "la página compartida"}"`, "error");
+
+        setNotifications(prev => [
+          {
+            id: `revoked:${Date.now()}`,
+            type: "access_revoked",
+            title: "🚫 Acceso revocado",
+            body: `El propietario eliminó o revocó tu acceso a "${payload.pageTitle || "la página compartida"}"`,
+            read: false,
+            createdAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        showToast(`🚫 Se ha revocado tu acceso a "${payload.pageTitle || "la página compartida"}"`, "error");
         fetchSharedPages();
       })
       .subscribe();
@@ -1132,6 +1172,78 @@ export default function App() {
                              }
                              setNotifPanelOpen(false);
                            }}
+                           onAcceptInvite={async (n) => {
+                             try {
+                               if (supabase && n.shareId) {
+                                 await supabase
+                                   .from("page_shares")
+                                   .update({ status: "accepted" })
+                                   .eq("id", n.shareId);
+                               }
+                               setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, status: "accepted", read: true } : item));
+                               showToast("¡Invitación aceptada!");
+                               if (n.pageId) selectPage(n.pageId);
+                               setNotifPanelOpen(false);
+
+                               // Notificar al propietario
+                               if (supabase && n.ownerEmail) {
+                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`);
+                                 respChan.subscribe(async (status) => {
+                                   if (status === "SUBSCRIBED") {
+                                     await respChan.send({
+                                       type: "broadcast",
+                                       event: "invite_response",
+                                       payload: {
+                                         responderEmail: user?.email,
+                                         pageTitle: n.pageTitle || "Sin título",
+                                         accepted: true
+                                       }
+                                     });
+                                     setTimeout(() => respChan.unsubscribe(), 1000);
+                                   }
+                                 });
+                               }
+                             } catch {
+                               showToast("Error al aceptar invitación", "error");
+                             }
+                           }}
+                           onDeclineInvite={async (n) => {
+                             try {
+                               if (supabase && n.shareId) {
+                                 await supabase.from("page_shares").delete().eq("id", n.shareId);
+                               }
+                               setNotifications(prev => prev.filter(item => item.id !== n.id));
+                               setSharedPages(prev => prev.filter(sp => sp.id !== n.shareId));
+                               setPages(prev => {
+                                 const next = { ...prev };
+                                 if (n.pageId) delete next[n.pageId];
+                                 return next;
+                               });
+                               showToast("Invitación rechazada");
+                               setNotifPanelOpen(false);
+
+                               // Notificar al propietario
+                               if (supabase && n.ownerEmail) {
+                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`);
+                                 respChan.subscribe(async (status) => {
+                                   if (status === "SUBSCRIBED") {
+                                     await respChan.send({
+                                       type: "broadcast",
+                                       event: "invite_response",
+                                       payload: {
+                                         responderEmail: user?.email,
+                                         pageTitle: n.pageTitle || "Sin título",
+                                         accepted: false
+                                       }
+                                     });
+                                     setTimeout(() => respChan.unsubscribe(), 1000);
+                                   }
+                                 });
+                               }
+                             } catch {
+                               showToast("Error al rechazar invitación", "error");
+                             }
+                           }}
                            onClose={() => setNotifPanelOpen(false)} />
       )}
 
@@ -1393,7 +1505,13 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
         <PageRow pg={pg} depth={depth} active={id === currentId && view === "docs"} hasKids={kids.length > 0} open={open}
                  onToggle={() => setExpanded(e => ({ ...e, [id]: !e[id] }))} onClick={() => selectPage(id)}
                  onAddSub={() => addPage(id)}
-                 onDelete={() => { if (confirm(`¿Borrar "${pg.title || "Sin título"}" y sus sub-páginas?`)) deletePage(id); }} />
+                 onDelete={() => {
+                   setConfirmDialog({
+                     title: `¿Mover "${pg.title || "Sin título"}" a la papelera?`,
+                     message: "Esta página se moverá a la papelera por 30 días. Si estaba compartida con colaboradores, se cancelará su acceso.",
+                     onConfirm: () => deletePage(id)
+                   });
+                 }} />
         {open && kids.map(k => render(k, depth + 1))}
       </div>
     );
@@ -2004,7 +2122,13 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, showT
           {!page.isShared && (
             <>
               <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
-              <button onClick={() => { if (confirm("¿Borrar esta página?")) onDelete(); }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
+              <button onClick={() => {
+                setConfirmDialog({
+                  title: `¿Mover "${page.title || "Sin título"}" a la papelera?`,
+                  message: "La página se moverá a la papelera durante 30 días. Si la tenías compartida, los colaboradores perderán el acceso.",
+                  onConfirm: onDelete
+                });
+              }} className="hov flex items-center gap-1 rounded px-2 py-1"><Trash2 size={13} /> Borrar</button>
             </>
           )}
         </div>
@@ -2085,36 +2209,46 @@ function ShareModal({ page, user, onClose, showToast }) {
           .eq("shared_with_email", targetEmail)
           .maybeSingle();
 
+        let insertedShare = null;
         if (existing) {
-          const { error: updateErr } = await supabase
+          const { data: updatedData, error: updateErr } = await supabase
             .from("page_shares")
-            .update({ permission })
-            .eq("id", existing.id);
+            .update({ permission, status: "pending" })
+            .eq("id", existing.id)
+            .select()
+            .single();
           if (updateErr) throw updateErr;
+          insertedShare = updatedData;
         } else {
-          const { error: insertErr } = await supabase
+          const { data: insertedData, error: insertErr } = await supabase
             .from("page_shares")
             .insert({
               page_id: page.id,
               owner_id: user.id,
               shared_with_email: targetEmail,
-              permission
-            });
+              permission,
+              status: "pending"
+            })
+            .select()
+            .single();
           if (insertErr) throw insertErr;
+          insertedShare = insertedData;
         }
 
-        // Transmitir notificación en tiempo real al destinatario
+        // Transmitir notificación de invitación en tiempo real al destinatario
         try {
           const notifChan = supabase.channel(`user_notifs:${targetEmail}`);
           notifChan.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
               await notifChan.send({
                 type: "broadcast",
-                event: "new_shared_page",
+                event: "new_shared_page_invite",
                 payload: {
-                  title: page.title || "Sin título",
+                  shareId: insertedShare?.id,
+                  pageId: page.id,
+                  pageTitle: page.title || "Sin título",
                   ownerEmail: user.email,
-                  pageId: page.id
+                  permission
                 }
               });
               setTimeout(() => notifChan.unsubscribe(), 1000);
@@ -2268,7 +2402,7 @@ function ShareModal({ page, user, onClose, showToast }) {
 }
 
 /* ================= Panel Desplegable de Notificaciones ================= */
-function NotificationPanel({ notifications, setNotifications, onSelectNotif, onClose }) {
+function NotificationPanel({ notifications, setNotifications, onSelectNotif, onAcceptInvite, onDeclineInvite, onClose }) {
   const markAllAsRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
@@ -2279,7 +2413,7 @@ function NotificationPanel({ notifications, setNotifications, onSelectNotif, onC
 
   const handleNotifClick = (n) => {
     setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
-    if (n.pageId) {
+    if (n.pageId && n.status !== "pending") {
       onSelectNotif(n.pageId);
     }
   };
@@ -2319,21 +2453,39 @@ function NotificationPanel({ notifications, setNotifications, onSelectNotif, onC
           <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
             {notifications.map(n => (
               <div key={n.id} onClick={() => handleNotifClick(n)}
-                   className={`group flex items-start gap-2.5 rounded-xl border p-2.5 text-xs transition cursor-pointer hover:shadow-sm ${!n.read ? "bg-[var(--accent-soft)]" : "bg-[var(--card)]"}`}
+                   className={`group flex flex-col gap-1.5 rounded-xl border p-2.5 text-xs transition cursor-pointer hover:shadow-sm ${!n.read ? "bg-[var(--accent-soft)]" : "bg-[var(--card)]"}`}
                    style={{ borderColor: !n.read ? T.accent : T.border }}>
-                <div className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                  <Share2 size={12} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <p className="font-semibold truncate text-[12px]" style={{ color: T.ink }}>{n.title}</p>
-                    {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />}
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                    {n.type === "page_invite" ? <UserPlus size={12} /> : n.type === "access_revoked" ? <Lock size={12} /> : <Share2 size={12} />}
                   </div>
-                  <p className="text-[11px] leading-tight" style={{ color: T.muted }}>{n.body}</p>
-                  <span className="mt-1 block text-[9px] opacity-70" style={{ color: T.muted }}>
-                    {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <p className="font-semibold truncate text-[12px]" style={{ color: T.ink }}>{n.title}</p>
+                      {!n.read && <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />}
+                    </div>
+                    <p className="text-[11px] leading-tight" style={{ color: T.muted }}>{n.body}</p>
+                    <span className="mt-1 block text-[9px] opacity-70" style={{ color: T.muted }}>
+                      {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Botones de Aceptar / Rechazar Invitación */}
+                {n.type === "page_invite" && n.status === "pending" && (
+                  <div className="mt-1 flex items-center gap-2 pt-1 border-t border-dashed" style={{ borderColor: T.border }}>
+                    <button onClick={(e) => { e.stopPropagation(); onAcceptInvite(n); }}
+                            className="flex-1 rounded-lg py-1 text-[11px] font-bold text-white shadow-sm transition hover:brightness-105 active:scale-[0.98] cursor-pointer"
+                            style={{ background: T.accent }}>
+                      Aceptar
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); onDeclineInvite(n); }}
+                            className="flex-1 rounded-lg py-1 text-[11px] font-semibold border transition hover:bg-red-500/10 active:scale-[0.98] cursor-pointer"
+                            style={{ borderColor: T.border, color: "var(--danger, #ef4444)" }}>
+                      Rechazar
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
