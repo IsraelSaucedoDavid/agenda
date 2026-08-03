@@ -1691,8 +1691,8 @@ function DeleteAccountTermsModal({ onClose, onProceed }) {
   const canProceed = check1 && check2 && check3;
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-[#121212] text-white p-6 shadow-2xl space-y-5">
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()} className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-[#121212] text-white p-6 shadow-2xl space-y-5">
         
         {/* Header */}
         <div className="flex items-start justify-between">
