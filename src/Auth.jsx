@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "./supabase";
-import { Mail, Lock, Sparkles, Loader2, AlertCircle, X } from "lucide-react";
+import { Mail, Lock, Sparkles, Loader2, AlertCircle, X, User } from "lucide-react";
 
 const GoogleIcon = () => (
   <svg className="h-4.5 w-4.5 mr-2" viewBox="0 0 24 24" fill="currentColor">
@@ -15,6 +15,7 @@ const GoogleIcon = () => (
 
 export default function Auth({ onLoginSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,6 +62,8 @@ export default function Auth({ onLoginSuccess }) {
           password,
           options: {
             data: {
+              full_name: displayName.trim(),
+              display_name: displayName.trim(),
               accepted_terms: true
             }
           }
@@ -133,6 +136,27 @@ export default function Auth({ onLoginSuccess }) {
 
         {/* Formulario */}
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          {isSignUp && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-1.5">
+                Tu Nombre
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--muted)]">
+                  <User size={16} />
+                </span>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Juan Pérez"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] py-2.5 pl-10 pr-4 text-sm text-[var(--ink)] placeholder-[var(--muted)] outline-none transition duration-200 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-1.5">
               Correo electrónico

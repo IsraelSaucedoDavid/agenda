@@ -205,7 +205,42 @@ export default function App() {
           error = retry.error;
         }
 
-        if (!error && data) {
+        // Extraer metadata de OAuth (Google/Registro)
+        const metaName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.display_name || "";
+        const metaAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || "";
+
+        if (!data) {
+          // Si el perfil no existe, crearlo automáticamente con datos de Google o registro
+          const initialProfile = {
+            id: user.id,
+            email: user.email,
+            display_name: metaName || null,
+            avatar_url: metaAvatar || null,
+            bio: "¡Hola! Estoy usando Órbita.",
+            updated_at: new Date().toISOString()
+          };
+          await supabase.from("profiles").upsert(initialProfile);
+          setProfile(initialProfile);
+        } else {
+          // Si el perfil ya existe pero le falta nombre o foto y Google los tiene, auto-completar
+          let needsUpdate = false;
+          const patch = { id: user.id, email: user.email, updated_at: new Date().toISOString() };
+
+          if (!data.display_name && metaName) {
+            data.display_name = metaName;
+            patch.display_name = metaName;
+            needsUpdate = true;
+          }
+          if (!data.avatar_url && metaAvatar) {
+            data.avatar_url = metaAvatar;
+            patch.avatar_url = metaAvatar;
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            await supabase.from("profiles").upsert(patch);
+          }
+
           setProfile(data);
         }
       } catch (err) {
