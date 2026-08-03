@@ -314,16 +314,36 @@ export default function App() {
     if (!user || !supabase) return;
     try {
       showToast("Eliminando tu cuenta y datos...");
-      await supabase.from("user_workspaces").delete().eq("user_id", user.id);
-      if (user.email) {
-        await supabase.from("page_shares").delete().eq("user_email", user.email.toLowerCase());
+
+      // 1. Intentar borrado atómico vía RPC en Supabase
+      const { error: rpcError } = await supabase.rpc("delete_user_account");
+      if (rpcError) {
+        console.warn("RPC delete_user_account no disponible o falló, usando borrado directo:", rpcError);
+        await supabase.from("user_workspaces").delete().eq("user_id", user.id);
+        if (user.email) {
+          await supabase.from("page_shares").delete().eq("user_email", user.email.toLowerCase());
+        }
+        await supabase.from("profiles").delete().eq("id", user.id);
       }
-      await supabase.from("profiles").delete().eq("id", user.id);
-      await handleLogout();
-      showToast("Tu cuenta ha sido eliminada permanentemente");
+
+      // 2. Limpiar cache local y cerrar sesión
+      const userId = user.id;
+      if (userId) {
+        localStorage.removeItem(`${KEY}:${userId}`);
+      }
+      localStorage.removeItem(KEY);
+      localStorage.clear();
+
+      await supabase.auth.signOut();
+      setProfile(null);
+      setPages({});
+      setOrder([]);
+      setCurrentId(null);
+
+      showToast("Tu cuenta ha sido eliminada por completo");
     } catch (err) {
       console.error("Error al eliminar cuenta:", err);
-      showToast("No se pudo eliminar la cuenta", "error");
+      showToast("No se pudo eliminar la cuenta por completo", "error");
     }
   };
 
