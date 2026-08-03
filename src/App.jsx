@@ -310,6 +310,23 @@ export default function App() {
     }
   };
 
+  const deleteAccount = async () => {
+    if (!user || !supabase) return;
+    try {
+      showToast("Eliminando tu cuenta y datos...");
+      await supabase.from("user_workspaces").delete().eq("user_id", user.id);
+      if (user.email) {
+        await supabase.from("page_shares").delete().eq("user_email", user.email.toLowerCase());
+      }
+      await supabase.from("profiles").delete().eq("id", user.id);
+      await handleLogout();
+      showToast("Tu cuenta ha sido eliminada permanentemente");
+    } catch (err) {
+      console.error("Error al eliminar cuenta:", err);
+      showToast("No se pudo eliminar la cuenta", "error");
+    }
+  };
+
   const handleLogout = async () => {
     const userId = user?.id;
     await supabase.auth.signOut();
@@ -1465,7 +1482,8 @@ export default function App() {
                        onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
                        user={user} onLogout={handleLogout} profile={profile}
                        updateProfileData={updateProfileData} uploadAvatar={uploadAvatar}
-                       removeAvatar={removeAvatar} />
+                       removeAvatar={removeAvatar} deleteAccount={deleteAccount}
+                       setConfirmDialog={setConfirmDialog} />
       )}
 
       {/* Panel desplegable de Notificaciones 🔔 */}
@@ -1645,7 +1663,7 @@ export default function App() {
 }
 
 /* ================= Ajustes ================= */
-function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar }) {
+function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar, deleteAccount, setConfirmDialog }) {
   const fileRef = useRef(null);
   const [activeTab, setActiveTab] = useState("general"); // "general", "profile", "support", "rules"
   
@@ -1896,6 +1914,28 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Danger Zone: Delete Account */}
+              <div className="rounded-xl border border-red-200 dark:border-red-900/40 p-4 bg-red-50/40 dark:bg-red-950/10 mt-6 shadow-sm">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--danger,#ef4444)]">Zona peligrosa</p>
+                <p className="text-[11px] mb-3 leading-relaxed" style={{ color: T.muted }}>
+                  Eliminar tu cuenta borrará permanentemente todas tus páginas, configuraciones, notas y foto de perfil. Esta acción no se puede deshacer.
+                </p>
+                <button onClick={() => {
+                  if (setConfirmDialog) {
+                    setConfirmDialog({
+                      title: "¿Eliminar tu cuenta permanentemente?",
+                      message: "Esta acción es IRREVERSIBLE. Se borrarán todas tus páginas, datos, notas y foto de perfil para siempre. ¿Estás seguro?",
+                      onConfirm: () => {
+                        onClose();
+                        deleteAccount();
+                      }
+                    });
+                  }
+                }} className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-white bg-[var(--danger,#ef4444)] hover:brightness-105 active:scale-[0.98] transition cursor-pointer shadow-sm">
+                  <Trash2 size={14} /> Eliminar mi cuenta
+                </button>
               </div>
             </div>
           )}
