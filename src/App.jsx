@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
+import OrbitaMark from "./brand";
 
 /* ------------------------------------------------------------------ *
  *  Órbita — páginas, notas, pendientes y calendario.
@@ -1424,7 +1425,7 @@ export default function App() {
         <aside className="fixed inset-y-0 left-0 z-30 flex h-full w-[82vw] max-w-72 flex-shrink-0 flex-col border-r md:static md:inset-auto md:w-64 md:max-w-none" style={{ background: T.sidebar, borderColor: T.border }}>
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <div className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-md text-xs font-bold text-white" style={{ background: T.accent }}>Ó</span>
+              <OrbitaMark size={24} className="shrink-0" />
               <span className="font-serif text-[15px] font-semibold tracking-tight">Órbita</span>
               <div className="flex items-center ml-1" title={
                 syncStatus === "synced" ? "Sincronizado con el servidor" : 
@@ -1601,6 +1602,7 @@ export default function App() {
             <button onClick={() => setSidebarOpen(true)} className="hov rounded p-1.5 cursor-pointer" style={{ color: T.muted }}>
               <Menu size={20} />
             </button>
+            <OrbitaMark size={22} className="shrink-0" />
             <span className="font-serif text-[15px] font-bold tracking-tight">
               {view === "calendar" ? "Calendario" :
                view === "agenda" ? "Agenda" :
@@ -1645,7 +1647,7 @@ export default function App() {
         ) : (
           <div className="grid flex-1 place-items-center px-6 text-center">
             <div>
-              <div className="mb-3 text-4xl">🗂️</div>
+              <img src="/ilustracion-empty.svg" alt="" className="mx-auto mb-3 w-56 select-none" draggable="false" />
               <p className="mb-1 font-serif text-lg">Tu órbita está vacía</p>
               <p className="mb-4 text-sm" style={{ color: T.muted }}>Crea tu primera página para empezar.</p>
               <button onClick={() => addPage(null)} className="rounded-md px-4 py-2 text-sm font-medium text-white transition" style={{ background: T.accent }}>Crear página</button>

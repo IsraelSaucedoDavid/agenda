@@ -19,15 +19,15 @@ export default defineConfig({
         name: "Órbita",
         short_name: "Órbita",
         description: "Tu órbita de trabajo: páginas, notas y pendientes.",
-        theme_color: "#0E7C66",
-        background_color: "#FAFAF7",
+        theme_color: "#0C0920",
+        background_color: "#0C0920",
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {

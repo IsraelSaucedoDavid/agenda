@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- App icon: sello sobre espacio profundo con nebulosas, campo de estrellas, sol radiante y anillos concéntricos -->
+  <defs>
+    <radialGradient id="space" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#2A1A4A"/>
+      <stop offset="45%" stop-color="#160F33"/>
+      <stop offset="100%" stop-color="#080513"/>
+    </radialGradient>
+    <radialGradient id="neb1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neb2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#2563EB" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neb3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#EC4899" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#EC4899" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="38%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#FFF6E0"/>
+      <stop offset="30%" stop-color="#FFD27A"/>
+      <stop offset="65%" stop-color="#FF8A5C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFB85C" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#A855F7" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#F472B6"/>
+    </linearGradient>
+    <radialGradient id="planet" cx="38%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#93C5FD"/>
+      <stop offset="55%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1E2A78"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#space)"/>
+
+  <ellipse cx="98" cy="118" rx="113" ry="113" fill="url(#neb1)"/>
+  <ellipse cx="420" cy="147" rx="120" ry="105" fill="url(#neb2)"/>
+  <ellipse cx="390" cy="402" rx="128" ry="113" fill="url(#neb3)"/>
+
+  <g fill="#FFFFFF">
+    <circle cx="53" cy="69" r="1.3" opacity="0.9"/>
+    <circle cx="113" cy="44" r="0.9" opacity="0.7"/>
+    <circle cx="180" cy="88" r="1.1" opacity="0.8"/>
+    <circle cx="248" cy="39" r="0.8" opacity="0.6"/>
+    <circle cx="315" cy="78" r="1.4" opacity="0.95"/>
+    <circle cx="390" cy="54" r="0.9" opacity="0.7"/>
+    <circle cx="458" cy="93" r="1.2" opacity="0.85"/>
+    <circle cx="45" cy="196" r="1" opacity="0.7"/>
+    <circle cx="26" cy="314" r="1.3" opacity="0.9"/>
+    <circle cx="68" cy="421" r="0.9" opacity="0.6"/>
+    <circle cx="135" cy="461" r="1.2" opacity="0.85"/>
+    <circle cx="225" cy="480" r="0.8" opacity="0.6"/>
+    <circle cx="315" cy="461" r="1.1" opacity="0.8"/>
+    <circle cx="420" cy="470" r="1" opacity="0.7"/>
+    <circle cx="480" cy="323" r="1.3" opacity="0.9"/>
+    <circle cx="491" cy="225" r="0.9" opacity="0.7"/>
+    <circle cx="353" cy="176" r="0.8" opacity="0.6"/>
+    <circle cx="161" cy="147" r="0.9" opacity="0.6"/>
+    <circle cx="110" cy="260" r="1.1" opacity="0.8"/>
+    <circle cx="200" cy="190" r="0.9" opacity="0.7"/>
+    <circle cx="280" cy="120" r="1.1" opacity="0.8"/>
+  </g>
+
+  <g transform="translate(256 256) rotate(-24)">
+    <ellipse cx="0" cy="0" rx="209" ry="69" fill="none" stroke="url(#ring)" stroke-width="1.2" opacity="0.35"/>
+    <ellipse cx="0" cy="0" rx="164" ry="53" fill="none" stroke="url(#ring)" stroke-width="1.5" opacity="0.55"/>
+    <ellipse cx="0" cy="0" rx="121" ry="37" fill="none" stroke="url(#ring)" stroke-width="1.8" opacity="0.8"/>
+    <ellipse cx="0" cy="0" rx="81" ry="25" fill="none" stroke="url(#ring)" stroke-width="2" opacity="0.95"/>
+
+    <ellipse cx="0" cy="0" rx="108" ry="108" fill="url(#halo)"/>
+    <circle cx="0" cy="0" r="33" fill="url(#core)"/>
+    <circle cx="0" cy="0" r="33" fill="none" stroke="#FFF2CC" stroke-width="0.6" opacity="0.5"/>
+    <circle cx="0" cy="0" r="2.5" fill="#FFF6E0" opacity="0.9"/>
+
+    <circle cx="168" cy="0" r="6.5" fill="url(#planet)"/>
+    <ellipse cx="166.6" cy="4.2" rx="1.8" ry="1.2" fill="#FFFFFF" opacity="0.8" transform="rotate(-22 166.6 4.2)"/>
+    <circle cx="168" cy="0" r="6.5" fill="none" stroke="#BFDBFE" stroke-width="0.5" opacity="0.5"/>
+    <circle cx="-142.6" cy="27.4" r="4" fill="#F9A8D4"/>
+    <circle cx="59" cy="-21.6" r="3" fill="#A5F3FC"/>
+  </g>
+</svg>

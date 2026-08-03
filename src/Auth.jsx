@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "./supabase";
 import { Mail, Lock, Sparkles, Loader2, AlertCircle, X, User } from "lucide-react";
+import OrbitaMark from "./brand";
 
 const GoogleIcon = () => (
   <svg className="h-4.5 w-4.5 mr-2" viewBox="0 0 24 24" fill="currentColor">
@@ -103,14 +104,16 @@ export default function Auth({ onLoginSuccess }) {
         <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] rounded-full bg-[var(--accent)] opacity-10 blur-[120px] dark:opacity-5"></div>
       </div>
 
-      <div className="relative w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-2xl backdrop-blur-md transition-all duration-300">
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-2xl backdrop-blur-md transition-all duration-300">
+        {/* Ilustración de marca "Órbita radiante" */}
+        <img src="/ilustracion-login.svg" alt="Órbita — tu universo en movimiento"
+             className="h-28 w-full object-cover object-center md:h-36" draggable="false" />
+
+        <div className="p-8">
         {/* Cabecera */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] mb-4">
-            <Sparkles size={24} />
-          </div>
           <h1 className="font-serif text-2xl font-bold tracking-tight text-[var(--ink)]">
-            {isSignUp ? "Crea tu espacio" : "Bienvenido a Órbita"}
+            {isSignUp ? "Crea tu órbita" : "Bienvenido a Órbita"}
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             {isSignUp
@@ -285,6 +288,7 @@ export default function Auth({ onLoginSuccess }) {
           <button onClick={() => setShowTerms(true)} type="button" className="hover:text-[var(--accent)] transition">Términos de Servicio</button>
           <span>•</span>
           <button onClick={() => setShowRules(true)} type="button" className="hover:text-[var(--accent)] transition">Normas de Convivencia</button>
+        </div>
         </div>
       </div>
 

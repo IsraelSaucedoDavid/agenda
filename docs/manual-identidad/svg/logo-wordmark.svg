@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 64" fill="none">
+  <!-- Wordmark: marca órbita radiante + tipografía de marca (Fraunces al final, serif de sistema como fallback) -->
+  <defs>
+    <radialGradient id="core" cx="38%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#FFF6E0"/>
+      <stop offset="30%" stop-color="#FFD27A"/>
+      <stop offset="65%" stop-color="#FF8A5C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFB85C" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#A855F7" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#A855F7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#F472B6"/>
+    </linearGradient>
+    <radialGradient id="planet" cx="38%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#93C5FD"/>
+      <stop offset="55%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1E2A78"/>
+    </radialGradient>
+  </defs>
+
+  <!-- anillos concéntricos -->
+  <g transform="rotate(-24 26 32)">
+    <ellipse cx="26" cy="32" rx="24" ry="7.4" fill="none" stroke="url(#ring)" stroke-width="1.3" opacity="0.3"/>
+    <ellipse cx="26" cy="32" rx="17.5" ry="5.4" fill="none" stroke="url(#ring)" stroke-width="1.5" opacity="0.65"/>
+    <ellipse cx="26" cy="32" rx="11.5" ry="3.6" fill="none" stroke="url(#ring)" stroke-width="1.6" opacity="0.95"/>
+  </g>
+
+  <!-- halo + sol -->
+  <circle cx="26" cy="32" r="11.5" fill="url(#halo)"/>
+  <circle cx="26" cy="32" r="4.6" fill="url(#core)"/>
+  <circle cx="26" cy="32" r="1.2" fill="#FFF6E0" opacity="0.9"/>
+
+  <!-- planeta 3D -->
+  <circle cx="47.9" cy="22.2" r="2.3" fill="url(#planet)"/>
+  <ellipse cx="47.2" cy="21.6" rx="0.7" ry="0.5" fill="#FFFFFF" opacity="0.85" transform="rotate(-22 47.2 21.6)"/>
+
+  <text x="56" y="42" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="700" fill="#1E1936" text-anchor="start">Órbita</text>
+</svg>
