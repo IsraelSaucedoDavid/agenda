@@ -220,7 +220,6 @@ export default function App() {
   const updateProfileData = async (displayName, bioText) => {
     if (!user || !supabase) return;
     try {
-      const isNew = !profile;
       const payload = {
         id: user.id,
         email: user.email,
@@ -229,14 +228,9 @@ export default function App() {
         updated_at: new Date().toISOString()
       };
 
-      let error;
-      if (isNew) {
-        const res = await supabase.from("profiles").insert(payload);
-        error = res.error;
-      } else {
-        const res = await supabase.from("profiles").update(payload).eq("id", user.id);
-        error = res.error;
-      }
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(payload);
 
       if (error) throw error;
       setProfile(prev => prev ? { ...prev, display_name: displayName, bio: bioText } : { display_name: displayName, bio: bioText });
@@ -272,7 +266,6 @@ export default function App() {
 
       const publicUrl = data.publicUrl;
 
-      const isNew = !profile;
       const payload = {
         id: user.id,
         email: user.email,
@@ -280,14 +273,9 @@ export default function App() {
         updated_at: new Date().toISOString()
       };
 
-      let updateError;
-      if (isNew) {
-        const res = await supabase.from("profiles").insert(payload);
-        updateError = res.error;
-      } else {
-        const res = await supabase.from("profiles").update(payload).eq("id", user.id);
-        updateError = res.error;
-      }
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .upsert(payload);
 
       if (updateError) throw updateError;
 
