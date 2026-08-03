@@ -4397,12 +4397,12 @@ function Block({ block, index, total, focusId, clearFocus, onChange, onEnter, on
 
   return (
     <div className="group relative flex items-start w-full min-w-0 py-1 hover:bg-neutral-50/40 dark:hover:bg-neutral-800/10 rounded-lg px-2 transition-all">
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-14 md:pr-0">
         {blockContent}
       </div>
 
       {/* Control pill (up, down, delete) */}
-      <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/60 rounded-xl px-1.5 py-0.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-neutral-100/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 rounded-xl px-1.5 py-0.5 shadow-md opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
         {index > 0 && (
           <button onClick={onMoveUp} title="Subir bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
             <ChevronUp size={13} />
