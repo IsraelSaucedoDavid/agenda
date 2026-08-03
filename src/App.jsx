@@ -5,7 +5,8 @@ import {
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, AlertTriangle, Menu, User, Check, Pencil,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
-  BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck
+  BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck,
+  FolderPlus, Folder, FolderOpen, MoreHorizontal
 } from "lucide-react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
@@ -88,6 +89,8 @@ const newPage = (parentId = null) => ({ id: uid(), title: "", icon: "📄", pare
 export default function App() {
   const [pages, setPages] = useState({});
   const [order, setOrder] = useState([]);
+  const [folders, setFolders] = useState({});
+  const [folderOrder, setFolderOrder] = useState([]);
   const [currentId, setCurrentId] = useState(() => localStorage.getItem("orbita:last_active_page") || null);
   const [view, setView] = useState(() => localStorage.getItem("orbita:last_active_view") || "docs");
   const [search, setSearch] = useState("");
@@ -402,7 +405,7 @@ export default function App() {
     try {
       const { data: serverData, error } = await supabase
         .from("user_workspaces")
-        .select("pages, order, updated_at")
+        .select("pages, order, folders, folder_order, updated_at")
         .eq("user_id", activeUser.id)
         .maybeSingle();
 
@@ -424,6 +427,8 @@ export default function App() {
             user_id: activeUser.id,
             pages: payloadToUpload.pages,
             order: payloadToUpload.order,
+            folders: payloadToUpload.folders || {},
+            folder_order: payloadToUpload.folderOrder || [],
             updated_at: payloadToUpload.updatedAt || new Date().toISOString()
           });
 
@@ -446,6 +451,8 @@ export default function App() {
       // Caso 2: El servidor tiene datos más recientes
       if (serverTime > localTime) {
         if (serverData.pages && serverData.order && serverData.order.length > 0) {
+          if (serverData.folders) { setFolders(serverData.folders); }
+          if (serverData.folder_order) { setFolderOrder(serverData.folder_order); }
           const newPayload = {
             pages: serverData.pages,
             order: serverData.order,
@@ -490,7 +497,9 @@ export default function App() {
           console.warn("Sincronización: Se previno sobrescribir el servidor con un cliente vacío.");
           setPages(serverData.pages);
           setOrder(serverData.order || []);
-          store.save({ pages: serverData.pages, order: serverData.order || [], updatedAt: serverData.updated_at }, activeUser.id);
+          if (serverData.folders) setFolders(serverData.folders);
+          if (serverData.folder_order) setFolderOrder(serverData.folder_order);
+          store.save({ pages: serverData.pages, order: serverData.order || [], folders: serverData.folders || {}, folderOrder: serverData.folder_order || [], updatedAt: serverData.updated_at }, activeUser.id);
           setSyncStatus("synced");
           return;
         }
@@ -501,6 +510,8 @@ export default function App() {
             user_id: activeUser.id,
             pages: localData.pages,
             order: localData.order,
+            folders: localData.folders || {},
+            folder_order: localData.folderOrder || [],
             updated_at: localData.updatedAt
           });
 
@@ -554,6 +565,8 @@ export default function App() {
         )
       );
       const purgedOrder = (localData.order || []).filter(id => purgedPages[id]);
+      if (localData.folders) setFolders(localData.folders);
+      if (localData.folderOrder) setFolderOrder(localData.folderOrder);
       setPages(purgedPages);
       setOrder(purgedOrder);
       setCurrentId(id => id && (purgedOrder.includes(id) || purgedPages[id]?.isSharedWithMe) ? id : getInitialPageId(purgedOrder));
@@ -902,7 +915,7 @@ export default function App() {
       
       // Guardar TODO en localStorage (incluyendo páginas compartidas) para que carguen
       // de forma instantánea al refrescar la app.
-      const payloadLocal = { pages, order, updatedAt: t };
+      const payloadLocal = { pages, order, folders, folderOrder, updatedAt: t };
       store.save(payloadLocal, user.id);
       
       // Filtrar las páginas compartidas-conmigo antes de subir a Supabase para que no
@@ -911,14 +924,14 @@ export default function App() {
         Object.entries(pages).filter(([, pg]) => !pg.isSharedWithMe)
       );
       const ownOrder = order.filter(id => !pages[id]?.isSharedWithMe);
-      const payloadSync = { pages: ownPages, order: ownOrder, updatedAt: t };
+      const payloadSync = { pages: ownPages, order: ownOrder, folders, folderOrder, updatedAt: t };
       
       clearTimeout(syncTimer.current);
       syncTimer.current = setTimeout(() => {
         syncWithServer(payloadSync, user);
       }, 1500);
     }, 300);
-  }, [pages, order, loading, authLoading, user, syncWithServer]);
+  }, [pages, order, folders, folderOrder, loading, authLoading, user, syncWithServer]);
 
   const page = pages[currentId];
 
@@ -945,6 +958,67 @@ export default function App() {
     if (parentId) setExpanded(e => ({ ...e, [parentId]: true }));
     setCurrentId(np.id); setView("docs");
     if (window.innerWidth < 768) setSidebarOpen(false);
+  };
+
+  /* ---- CRUD de Carpetas ---- */
+  const FOLDER_COLORS = [
+    "#6366f1", "#ec4899", "#f97316", "#eab308", "#22c55e", "#06b6d4",
+    "#3b82f6", "#8b5cf6", "#ef4444", "#a16207", "#6b7280", "#10b981"
+  ];
+
+  const addFolder = (name = "", color = null) => {
+    isDirtyRef.current = true;
+    const fid = uid();
+    const randomColor = FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
+    const folder = { id: fid, name: name.trim() || "Nueva carpeta", color: color || randomColor, pageIds: [] };
+    setFolders(f => ({ ...f, [fid]: folder }));
+    setFolderOrder(fo => [...fo, fid]);
+    return fid;
+  };
+
+  const renameFolder = (fid, name, color) => {
+    isDirtyRef.current = true;
+    setFolders(f => ({ ...f, [fid]: { ...f[fid], name: name.trim() || "Sin nombre", color } }));
+  };
+
+  const deleteFolder = (fid) => {
+    isDirtyRef.current = true;
+    setFolders(f => { const next = { ...f }; delete next[fid]; return next; });
+    setFolderOrder(fo => fo.filter(id => id !== fid));
+  };
+
+  const addPageToFolder = (pageId, fid) => {
+    isDirtyRef.current = true;
+    // Quitar de cualquier carpeta existente
+    setFolders(f => {
+      const next = {};
+      for (const [id, folder] of Object.entries(f)) {
+        next[id] = { ...folder, pageIds: folder.pageIds.filter(pid => pid !== pageId) };
+      }
+      // Agregar a la nueva carpeta
+      if (next[fid]) {
+        next[fid] = { ...next[fid], pageIds: [...next[fid].pageIds, pageId] };
+      }
+      return next;
+    });
+  };
+
+  const removePageFromFolder = (pageId) => {
+    isDirtyRef.current = true;
+    setFolders(f => {
+      const next = {};
+      for (const [id, folder] of Object.entries(f)) {
+        next[id] = { ...folder, pageIds: folder.pageIds.filter(pid => pid !== pageId) };
+      }
+      return next;
+    });
+  };
+
+  const getFolderOfPage = (pageId) => {
+    for (const [fid, folder] of Object.entries(folders)) {
+      if (folder.pageIds.includes(pageId)) return fid;
+    }
+    return null;
   };
 
   // --- Soft delete: marca con deletedAt en lugar de borrar físicamente ---
@@ -1104,6 +1178,9 @@ export default function App() {
   // Excluye páginas en papelera, hijos y páginas ajenas (compartidas-conmigo) de la barra lateral principal
   const childrenOf = useCallback((pid) => order.filter(id => pages[id]?.parentId === pid && !pages[id]?.deletedAt && !pages[id]?.isSharedWithMe), [order, pages]);
   const roots = order.filter(id => !pages[id]?.parentId && !pages[id]?.deletedAt && !pages[id]?.isSharedWithMe);
+
+  // Páginas raíz que NO están en ninguna carpeta
+  const unFolderedRoots = roots.filter(id => !getFolderOfPage(id));
 
   // Contador de páginas en la papelera (solo raíces, no hijos)
   const trashedPages = useMemo(() => order.filter(id => pages[id]?.deletedAt && !pages[id]?.parentId), [order, pages]);
@@ -1404,15 +1481,60 @@ export default function App() {
                 {searchHits.map(id => <PageRow key={id} pg={pages[id]} depth={0} active={id === currentId} onClick={() => selectPage(id)} />)}
               </div>
             ) : (
-              <Tree roots={roots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
-                    selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage}
-                    deletePage={softDeletePage} sharedPages={sharedPages} sharedByMe={sharedByMe} setConfirmDialog={setConfirmDialog} />
+              <>
+                {/* Carpetas */}
+                {folderOrder.map(fid => {
+                  const folder = folders[fid];
+                  if (!folder) return null;
+                  const folderPageIds = folder.pageIds.filter(pid => pages[pid] && !pages[pid].deletedAt && !pages[pid].isSharedWithMe);
+                  return (
+                    <FolderRow
+                      key={fid}
+                      folder={folder}
+                      folderPageIds={folderPageIds}
+                      pages={pages}
+                      childrenOf={childrenOf}
+                      currentId={currentId}
+                      view={view}
+                      selectPage={selectPage}
+                      expanded={expanded}
+                      setExpanded={setExpanded}
+                      addPage={addPage}
+                      deletePage={softDeletePage}
+                      setConfirmDialog={setConfirmDialog}
+                      onEditFolder={(fid, name, color) => renameFolder(fid, name, color)}
+                      onDeleteFolder={(fid) => setConfirmDialog({
+                        title: `¿Eliminar la carpeta "${folder.name}"?`,
+                        message: "Las páginas dentro quedarán sueltas, no se eliminarán.",
+                        onConfirm: () => deleteFolder(fid)
+                      })}
+                      folders={folders}
+                      folderOrder={folderOrder}
+                      addPageToFolder={addPageToFolder}
+                      removePageFromFolder={removePageFromFolder}
+                      getFolderOfPage={getFolderOfPage}
+                      updatePage={updatePage}
+                    />
+                  );
+                })}
+
+                {/* Páginas sin carpeta */}
+                <Tree roots={unFolderedRoots} childrenOf={childrenOf} pages={pages} currentId={currentId} view={view}
+                      selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage}
+                      deletePage={softDeletePage} sharedPages={sharedPages} sharedByMe={sharedByMe} setConfirmDialog={setConfirmDialog}
+                      folders={folders} folderOrder={folderOrder} addPageToFolder={addPageToFolder} removePageFromFolder={removePageFromFolder} getFolderOfPage={getFolderOfPage}
+                      updatePage={updatePage} />
+              </>
             )}
+
           </nav>
 
           <div className="border-t px-2 py-2" style={{ borderColor: T.border }}>
             <button onClick={() => addPage(null)} className="hov flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium" style={{ color: T.accent }}>
               <Plus size={15} /> Nueva página
+            </button>
+            <button onClick={() => { addFolder(); }} className="hov flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium" style={{ color: T.muted }}>
+              <FolderPlus size={15} /> Nueva carpeta
             </button>
             <button onClick={() => setView("trash")}
                     className={`hov flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium mt-0.5 ${view === "trash" ? "font-semibold" : ""}`}
@@ -2371,10 +2493,11 @@ function ImageEditorModal({ imageSrc, onClose, onSave }) {
 }
 
 /* ================= Árbol lateral ================= */
-function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, sharedByMe, setConfirmDialog }) {
+function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, sharedByMe, setConfirmDialog, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage }) {
   const render = (id, depth) => {
     const pg = pages[id]; if (!pg) return null;
     const kids = childrenOf(id); const open = expanded[id];
+    const isRoot = !pg.parentId;
     return (
       <div key={id}>
         <PageRow pg={pg} depth={depth} active={id === currentId && view === "docs"} hasKids={kids.length > 0} open={open}
@@ -2390,7 +2513,15 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
                    } else {
                      if (confirm(`¿Borrar "${pg.title || "Sin título"}"?`)) deletePage(id);
                    }
-                 }} />
+                 }}
+                 isRoot={isRoot}
+                 folders={isRoot ? folders : null}
+                 folderOrder={isRoot ? folderOrder : null}
+                 currentFolderId={isRoot && getFolderOfPage ? getFolderOfPage(id) : null}
+                 onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
+                 onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
+                 onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 />
         {open && kids.map(k => render(k, depth + 1))}
       </div>
     );
@@ -2398,8 +2529,8 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
 
   return (
     <div className="pt-1">
-      {roots.length === 0 ? (
-        <p className="px-2 pt-2 text-[13px]" style={{ color: T.muted }}>Aún no hay páginas.</p>
+      {roots.length === 0 && !sharedPages?.length && !sharedByMe?.length ? (
+        <p className="px-2 pt-2 text-[13px]" style={{ color: T.muted }}>Aún no hay páginas sueltas.</p>
       ) : (
         roots.map(r => render(r, 0))
       )}
@@ -2451,27 +2582,335 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
   );
 }
 
-function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub, onDelete }) {
+/* ================= Fila de Carpeta ================= */
+function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, setConfirmDialog, onEditFolder, onDeleteFolder, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage }) {
+  const [open, setOpen] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const [editingFolder, setEditingFolder] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const renderPage = (id, depth) => {
+    const pg = pages[id]; if (!pg) return null;
+    const kids = childrenOf(id); const isOpen = expanded[id];
+    const isRoot = !pg.parentId;
+    return (
+      <div key={id}>
+        <PageRow pg={pg} depth={depth} active={id === currentId && view === "docs"} hasKids={kids.length > 0} open={isOpen}
+                 onToggle={() => setExpanded(e => ({ ...e, [id]: !e[id] }))} onClick={() => selectPage(id)}
+                 onAddSub={() => addPage(id)}
+                 onDelete={() => {
+                   if (setConfirmDialog) {
+                     setConfirmDialog({
+                       title: `¿Mover "${pg.title || "Sin título"}" a la papelera?`,
+                       message: "Esta página se moverá a la papelera por 30 días.",
+                       onConfirm: () => deletePage(id)
+                     });
+                   }
+                 }}
+                 isRoot={isRoot}
+                 folders={isRoot ? folders : null}
+                 folderOrder={isRoot ? folderOrder : null}
+                 currentFolderId={isRoot ? folder.id : null}
+                 onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
+                 onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
+                 onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 />
+        {isOpen && kids.map(k => renderPage(k, depth + 1))}
+      </div>
+    );
+  };
+
+
   return (
-    <div className="hov group flex items-center rounded-md pr-1" style={{ paddingLeft: 4 + depth * 14, background: active ? T.accentSoft : "transparent" }}>
-      {hasKids ? (
-        <button onClick={onToggle} className="hov rounded p-0.5">
+    <div className="mb-1">
+      {/* Header de la carpeta */}
+      <div className="group hov flex items-center rounded-md pr-1 pl-1 py-0.5" style={{ background: "transparent" }}>
+        <button onClick={() => setOpen(o => !o)} className="hov rounded p-0.5 flex-shrink-0">
           {open ? <ChevronDown size={13} style={{ color: T.muted }} /> : <ChevronRight size={13} style={{ color: T.muted }} />}
         </button>
-      ) : <span className="w-[18px]" />}
-      <button onClick={onClick} className="flex flex-1 items-center gap-1.5 truncate py-1.5 text-left text-[13px]">
-        <span className="text-[13px] leading-none">{pg.icon}</span>
-        <span className="truncate" style={{ fontWeight: active ? 600 : 400 }}>{pg.title || "Sin título"}</span>
-      </button>
-      {onAddSub && (
-        <div className="flex md:opacity-0 transition md:group-hover:opacity-100">
-          <button onClick={onAddSub} title="Sub-página" className="hov rounded p-1"><Plus size={13} style={{ color: T.muted }} /></button>
-          <button onClick={onDelete} title="Borrar" className="hov rounded p-1"><Trash2 size={13} style={{ color: T.muted }} /></button>
+        <div className="flex-1 flex items-center gap-1.5 min-w-0 py-1" onClick={() => setOpen(o => !o)} style={{ cursor: "pointer" }}>
+          <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: folder.color }} />
+          {open ? <FolderOpen size={14} style={{ color: folder.color }} /> : <Folder size={14} style={{ color: folder.color }} />}
+          <span className="truncate text-[13px] font-semibold" style={{ color: T.ink }}>{folder.name}</span>
+          {folderPageIds.length > 0 && (
+            <span className="text-[10px] rounded-full px-1.5 py-0.5 font-semibold flex-shrink-0"
+                  style={{ background: T.accentSoft, color: T.accent }}>{folderPageIds.length}</span>
+          )}
+        </div>
+        <div className="relative flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition" ref={menuRef}>
+          <button onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }} className="hov rounded p-1">
+            <MoreHorizontal size={13} style={{ color: T.muted }} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+                 style={{ background: T.sidebar, borderColor: T.border }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => { setShowMenu(false); setEditingFolder(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left" style={{ color: T.ink }}>
+                <Pencil size={13} /> Editar carpeta
+              </button>
+              <button onClick={() => { setShowMenu(false); onDeleteFolder(folder.id); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-red-500/10 transition text-left" style={{ color: "var(--danger, #ef4444)" }}>
+                <Trash2 size={13} /> Eliminar carpeta
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Páginas dentro de la carpeta */}
+      {open && (
+        <div className="ml-2 pl-2 border-l" style={{ borderColor: folder.color + "60" }}>
+          {folderPageIds.length === 0 ? (
+            <p className="px-2 py-1 text-[11px] italic" style={{ color: T.muted }}>Carpeta vacía</p>
+          ) : (
+            folderPageIds.map(id => renderPage(id, 0))
+          )}
+        </div>
+      )}
+
+      {/* Modal para editar la carpeta */}
+      {editingFolder && (
+        <FolderEditModal
+          folder={folder}
+          onClose={() => setEditingFolder(false)}
+          onSave={(name, color) => { onEditFolder(folder.id, name, color); setEditingFolder(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ================= Modal Editar / Crear Carpeta ================= */
+const FOLDER_PALETTE = [
+  "#6366f1", "#ec4899", "#f97316", "#eab308", "#22c55e", "#06b6d4",
+  "#3b82f6", "#8b5cf6", "#ef4444", "#a16207", "#6b7280", "#10b981"
+];
+
+function FolderEditModal({ folder, onClose, onSave }) {
+  const [name, setName] = useState(folder?.name || "");
+  const [color, setColor] = useState(folder?.color || FOLDER_PALETTE[0]);
+
+  const handleSave = () => {
+    onSave(name.trim() || "Nueva carpeta", color);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+         onClick={e => e.stopPropagation()}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95 duration-150 space-y-5"
+           style={{ background: T.sidebar, borderColor: T.border, color: T.ink }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full" style={{ background: color }} />
+            <h3 className="font-serif text-base font-bold">{folder ? "Editar carpeta" : "Nueva carpeta"}</h3>
+          </div>
+          <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.muted }}>Nombre</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value.slice(0, 40))}
+            placeholder="Ej. Trabajo, Personal, Proyectos…"
+            maxLength={40}
+            autoFocus
+            className="w-full rounded-lg border px-3 py-2 text-[13px] outline-none transition"
+            style={{ borderColor: T.border, background: T.bg, color: T.ink }}
+          />
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: T.muted }}>Color</label>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {FOLDER_PALETTE.map(c => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className="h-7 w-7 rounded-full transition hover:scale-110 active:scale-95"
+                style={{
+                  background: c,
+                  boxShadow: color === c ? `0 0 0 2px ${T.bg}, 0 0 0 4px ${c}` : "none"
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-[12px] cursor-pointer" style={{ color: T.muted }}>
+              <span>Color libre:</span>
+              <input
+                type="color"
+                value={color}
+                onChange={e => setColor(e.target.value)}
+                className="h-7 w-10 rounded cursor-pointer border-0 bg-transparent p-0"
+              />
+            </label>
+            <span className="text-[11px] font-mono" style={{ color: T.muted }}>{color}</span>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t pt-4" style={{ borderColor: T.border }}>
+          <button onClick={onClose} className="hov rounded-lg border px-4 py-2 text-[12px] font-semibold transition"
+                  style={{ borderColor: T.border, color: T.muted }}>Cancelar</button>
+          <button onClick={handleSave} className="rounded-lg px-5 py-2 text-[12px] font-semibold text-white shadow transition hover:brightness-105 active:scale-95"
+                  style={{ background: color }}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub, onDelete, isRoot, folders, folderOrder, currentFolderId, onAddToFolder, onRemoveFromFolder, onRename }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(pg.title || "");
+  const menuRef = useRef(null);
+  const renameRef = useRef(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showMenu]);
+
+  useEffect(() => {
+    if (isRenaming && renameRef.current) {
+      renameRef.current.focus();
+      renameRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleRenameSubmit = () => {
+    if (onRename) onRename(renameValue.trim() || "Sin título");
+    setIsRenaming(false);
+  };
+
+  return (
+    <div className="hov group flex items-center rounded-md pr-0.5" style={{ paddingLeft: 4 + depth * 14, background: active ? T.accentSoft : "transparent" }}>
+      {hasKids ? (
+        <button onClick={onToggle} className="hov rounded p-0.5 flex-shrink-0">
+          {open ? <ChevronDown size={13} style={{ color: T.muted }} /> : <ChevronRight size={13} style={{ color: T.muted }} />}
+        </button>
+      ) : <span className="w-[18px] flex-shrink-0" />}
+
+      {isRenaming ? (
+        <input
+          ref={renameRef}
+          value={renameValue}
+          onChange={e => setRenameValue(e.target.value)}
+          onBlur={handleRenameSubmit}
+          onKeyDown={e => {
+            if (e.key === "Enter") { e.preventDefault(); handleRenameSubmit(); }
+            if (e.key === "Escape") { setRenameValue(pg.title || ""); setIsRenaming(false); }
+          }}
+          className="flex-1 min-w-0 bg-transparent text-[13px] outline-none border-b py-1"
+          style={{ borderColor: T.accent, color: T.ink }}
+        />
+      ) : (
+        <button onClick={onClick} className="flex flex-1 min-w-0 items-center gap-1.5 truncate py-1.5 text-left text-[13px]">
+          <span className="text-[13px] leading-none flex-shrink-0">{pg.icon}</span>
+          <span className="truncate" style={{ fontWeight: active ? 600 : 400 }}>{pg.title || "Sin título"}</span>
+        </button>
+      )}
+
+      {onAddSub && !isRenaming && (
+        <div className="relative flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition" ref={menuRef}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowMenu(v => !v); }}
+            className="hov rounded p-1"
+            title="Acciones"
+          >
+            <MoreHorizontal size={13} style={{ color: T.muted }} />
+          </button>
+
+          {showMenu && (
+            <div
+              className="absolute right-0 top-7 z-50 w-52 rounded-xl border shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+              style={{ background: T.sidebar, borderColor: T.border }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { setShowMenu(false); setRenameValue(pg.title || ""); setIsRenaming(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
+                style={{ color: T.ink }}
+              >
+                <Pencil size={13} /> Renombrar
+              </button>
+
+              <button
+                onClick={() => { setShowMenu(false); onAddSub(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
+                style={{ color: T.ink }}
+              >
+                <CornerDownRight size={13} /> Agregar subpágina
+              </button>
+
+              {isRoot && folders && folderOrder && (
+                <>
+                  <div className="my-1 border-t" style={{ borderColor: T.border }} />
+                  <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: T.muted }}>Carpeta</p>
+
+                  {currentFolderId && (
+                    <button
+                      onClick={() => { onRemoveFromFolder(); setShowMenu(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
+                      style={{ color: T.ink }}
+                    >
+                      <X size={12} style={{ color: T.muted }} />
+                      <span>Sin carpeta</span>
+                      <span className="ml-auto text-[10px] truncate max-w-[80px]" style={{ color: T.muted }}>
+                        {folders[currentFolderId]?.name}
+                      </span>
+                    </button>
+                  )}
+
+                  {folderOrder.length === 0 && !currentFolderId ? (
+                    <p className="px-3 py-2 text-[12px] italic" style={{ color: T.muted }}>Sin carpetas creadas</p>
+                  ) : (
+                    folderOrder.map(fid => {
+                      if (!folders[fid] || fid === currentFolderId) return null;
+                      const f = folders[fid];
+                      return (
+                        <button
+                          key={fid}
+                          onClick={() => { onAddToFolder(fid); setShowMenu(false); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
+                          style={{ color: T.ink }}
+                        >
+                          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: f.color }} />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </>
+              )}
+
+              <div className="my-1 border-t" style={{ borderColor: T.border }} />
+              <button
+                onClick={() => { setShowMenu(false); onDelete(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-red-500/10 transition text-left"
+                style={{ color: "var(--danger, #ef4444)" }}
+              >
+                <Trash2 size={13} /> Mover a papelera
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+
 
 /* ================= Vista Calendario ================= */
 function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {

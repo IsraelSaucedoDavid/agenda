@@ -1,7 +1,7 @@
 {
   "package.json": {
-    "mtime": 1785769701.636158,
-    "ast_hash": "ba1442cbec099ad8711a849395ed96e7",
+    "mtime": 1785459070.371965,
+    "ast_hash": "f978e625e7d63e5da0c5302e89e079d4",
     "semantic_hash": ""
   },
   "server/index.js": {
@@ -15,8 +15,8 @@
     "semantic_hash": "dc09c4ef687902e0e0c1127faea9a556"
   },
   "src/App.jsx": {
-    "mtime": 1785792871.503072,
-    "ast_hash": "7c798288e18a1a15688434fc6250b31b",
+    "mtime": 1785527877.324139,
+    "ast_hash": "b982cfbce144d945f643b49acbb4a27d",
     "semantic_hash": ""
   },
   "src/main.jsx": {
@@ -25,13 +25,13 @@
     "semantic_hash": "62e50ef54352ffdf626adb503bab8c44"
   },
   "vite.config.js": {
-    "mtime": 1785769692.9710314,
-    "ast_hash": "2533d2bc8ffdf6a4da60c5aea4581136",
+    "mtime": 1785459070.3860204,
+    "ast_hash": "5cb9ff11d202a8c4dee5edfeef4b380f",
     "semantic_hash": ""
   },
   "src/Auth.jsx": {
-    "mtime": 1785791587.2789893,
-    "ast_hash": "6b7bbab4ad8bb091f0f57f745e9d6967",
+    "mtime": 1785459070.3849955,
+    "ast_hash": "23725a68491cfaf27096fbd1f39ebcca",
     "semantic_hash": ""
   },
   "src/supabase.js": {
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1785772795.9464965,
-    "ast_hash": "6c06b451435bd697b3b3b2acdb5751b0",
+    "mtime": 1785446125.0154917,
+    "ast_hash": "d130c57070c3b137449663b4c25ad66c",
     "semantic_hash": ""
   },
   "pnpm-workspace.yaml": {
@@ -95,7 +95,7 @@
     "semantic_hash": ""
   },
   "dev-dist/registerSW.js": {
-    "mtime": 1785773316.8053794,
+    "mtime": 1785455620.7594266,
     "ast_hash": "b2999fa3193e9ce6a83fa7d0681b1d1b",
     "semantic_hash": ""
   },

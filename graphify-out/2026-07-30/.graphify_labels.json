@@ -5,10 +5,14 @@
   "3": "index.js",
   "4": "package.json",
   "5": "dependencies",
-  "6": "App",
+  "6": "todayStr",
   "7": "addDays",
   "8": "Espacio — tu mini-Notion instalable",
   "9": "vite.config.js",
   "10": "rules/graphify.md",
-  "11": "workflows/graphify.md"
+  "11": "workflows/graphify.md",
+  "12": "App",
+  "13": "Auth.jsx",
+  "14": "sw.js",
+  "15": "registerSW.js"
 }

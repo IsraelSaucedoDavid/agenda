@@ -1,0 +1,233 @@
+{
+  "communities": {
+    "0": [
+      "cors",
+      "express",
+      "server_package",
+      "server_package_dependencies",
+      "server_package_dependencies_cors",
+      "server_package_dependencies_express",
+      "server_package_dependencies_sqlite3",
+      "server_package_description",
+      "server_package_main",
+      "server_package_name",
+      "server_package_scripts",
+      "server_package_scripts_start",
+      "server_package_type",
+      "server_package_version",
+      "sqlite3"
+    ],
+    "1": [
+      "src_app",
+      "src_app_block",
+      "src_app_block_menu",
+      "src_app_emojis",
+      "src_app_menulist",
+      "src_app_months",
+      "src_app_months_s",
+      "src_app_pagerow",
+      "src_app_settingsmodal",
+      "src_app_store",
+      "src_app_t",
+      "src_app_tree",
+      "src_app_type_style",
+      "src_app_week_s"
+    ],
+    "2": [
+      "package_devdependencies",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_vite",
+      "package_devdependencies_vite",
+      "package_devdependencies_vite_plugin_pwa",
+      "package_devdependencies_vitejs_plugin_react",
+      "tailwindcss",
+      "tailwindcss_vite",
+      "vite",
+      "vite_plugin_pwa",
+      "vitejs_plugin_react"
+    ],
+    "3": [
+      "server_index",
+      "server_index_app",
+      "server_index_cors",
+      "server_index_db",
+      "server_index_dbdir",
+      "server_index_dbpath",
+      "server_index_express",
+      "server_index_fs",
+      "server_index_path",
+      "server_index_sqlite3"
+    ],
+    "4": [
+      "package",
+      "package_name",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_preview",
+      "package_type",
+      "package_version"
+    ],
+    "5": [
+      "lucide_react",
+      "package_dependencies",
+      "package_dependencies_lucide_react",
+      "package_dependencies_react",
+      "package_dependencies_react_dom",
+      "react",
+      "react_dom"
+    ],
+    "6": [
+      "src_app_app",
+      "src_app_calendarview",
+      "src_app_pad",
+      "src_app_todaystr",
+      "src_app_tostr",
+      "src_main"
+    ],
+    "7": [
+      "src_app_adddays",
+      "src_app_agendaview",
+      "src_app_chiplabel",
+      "src_app_datechip",
+      "src_app_fromstr"
+    ],
+    "8": [
+      "src_app_editor",
+      "src_app_emptyblock",
+      "src_app_newpage",
+      "src_app_seedworkspace",
+      "src_app_uid"
+    ],
+    "9": [
+      "vite_config"
+    ]
+  },
+  "cohesion": {
+    "0": 0.13333333333333333,
+    "1": 0.14285714285714285,
+    "2": 0.18181818181818182,
+    "3": 0.2,
+    "4": 0.2222222222222222,
+    "5": 0.2857142857142857,
+    "6": 0.5333333333333333,
+    "7": 0.6,
+    "8": 0.6,
+    "9": 1.0
+  },
+  "gods": [
+    {
+      "id": "src_app_app",
+      "label": "App()",
+      "degree": 8
+    },
+    {
+      "id": "src_app_todaystr",
+      "label": "todayStr()",
+      "degree": 6
+    },
+    {
+      "id": "src_app_emptyblock",
+      "label": "emptyBlock()",
+      "degree": 6
+    },
+    {
+      "id": "src_app_seedworkspace",
+      "label": "seedWorkspace()",
+      "degree": 6
+    },
+    {
+      "id": "src_app_tostr",
+      "label": "toStr()",
+      "degree": 5
+    },
+    {
+      "id": "src_app_fromstr",
+      "label": "fromStr()",
+      "degree": 5
+    },
+    {
+      "id": "src_app_adddays",
+      "label": "addDays()",
+      "degree": 5
+    },
+    {
+      "id": "src_app_newpage",
+      "label": "newPage()",
+      "degree": 5
+    },
+    {
+      "id": "src_app_agendaview",
+      "label": "AgendaView()",
+      "degree": 5
+    },
+    {
+      "id": "package_scripts",
+      "label": "scripts",
+      "degree": 4
+    }
+  ],
+  "surprises": [
+    {
+      "source": "addDays()",
+      "target": "toStr()",
+      "source_files": [
+        "src/App.jsx",
+        "src/App.jsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 6 → community 7"
+    },
+    {
+      "source": "seedWorkspace()",
+      "target": "todayStr()",
+      "source_files": [
+        "src/App.jsx",
+        "src/App.jsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 6 → community 8"
+    },
+    {
+      "source": "seedWorkspace()",
+      "target": "addDays()",
+      "source_files": [
+        "src/App.jsx",
+        "src/App.jsx"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 7 → community 8"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `devDependencies` connect `Community 2` to `Community 4`?",
+      "why": "High betweenness centrality (0.060) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `dependencies` connect `Community 5` to `Community 4`?",
+      "why": "High betweenness centrality (0.040) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `name`, `private`, `version` to the rest of the system?",
+      "why": "41 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.13333333333333333 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

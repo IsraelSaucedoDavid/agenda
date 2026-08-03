@@ -60,7 +60,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
 <div class="container">
 
 <h1>espacio-pwa — Complete Call Flow &amp; Architecture Documentation</h1>
-<p class="subtitle">Generated from graphify knowledge graph: 102 nodes, 126 edges, 14 communities. Commit: 57e42fc</p>
+<p class="subtitle">Generated from graphify knowledge graph: 127 nodes, 155 edges, 14 communities. Commit: 511bd43</p>
 
 <div class="nav">
     <a href="#overview">Architecture Overview</a>
@@ -68,12 +68,13 @@ hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
     <a href="#cli-skills">CLI &amp; Skill Installers</a>
     <a href="#app-jsx">App.jsx</a>
     <a href="#index-js">index.js</a>
+    <a href="#todaystr">todayStr</a>
     <a href="#espacio-tu-mini-notion-instalable">Espacio — tu mini-Notion instalable</a>
-    <a href="#auth-jsx">Auth.jsx</a>
-    <a href="#emptyblock">emptyBlock</a>
-    <a href="#adddays">addDays</a>
+    <a href="#reglas-de-buenas-pr-cticas-y-qu-no-hacer-al-real">🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones</a>
     <a href="#rules-graphify-md">rules/graphify.md</a>
     <a href="#workflows-graphify-md">workflows/graphify.md</a>
+    <a href="#sw-js">sw.js</a>
+    <a href="#registersw-js">registerSW.js</a>
     <a href="#vite-config-js">vite.config.js</a>
 </div>
 
@@ -84,37 +85,33 @@ hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
 
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    BUILD_GRAPH_321CBB04("Graph Build<br/><small>44 nodes</small>")
+    BUILD_GRAPH_321CBB04("Graph Build<br/><small>50 nodes</small>")
     class BUILD_GRAPH_321CBB04 module;
-    CLI_SKILLS_9964CBB8("CLI &amp; Skill Installers<br/><small>6 nodes</small>")
+    CLI_SKILLS_9964CBB8("CLI &amp; Skill Installers<br/><small>10 nodes</small>")
     class CLI_SKILLS_9964CBB8 module;
-    APP_JSX_9B389801("App.jsx<br/><small>14 nodes</small>")
+    APP_JSX_9B389801("App.jsx<br/><small>29 nodes</small>")
     class APP_JSX_9B389801 module;
     INDEX_JS_000AA56A("index.js<br/><small>10 nodes</small>")
     class INDEX_JS_000AA56A module;
+    TODAYSTR_BD253026("todayStr<br/><small>10 nodes</small>")
+    class TODAYSTR_BD253026 module;
     ESPACIO_TU_MINI_NOTION_INSTALABLE_DE2CFD1B("Espacio — tu mini-Notion instalable<br/><small>7 nodes</small>")
     class ESPACIO_TU_MINI_NOTION_INSTALABLE_DE2CFD1B module;
-    AUTH_JSX_94CDC346("Auth.jsx<br/><small>6 nodes</small>")
-    class AUTH_JSX_94CDC346 module;
-    EMPTYBLOCK_91B27F4A("emptyBlock<br/><small>5 nodes</small>")
-    class EMPTYBLOCK_91B27F4A module;
-    ADDDAYS_43AE2B07("addDays<br/><small>5 nodes</small>")
-    class ADDDAYS_43AE2B07 module;
+    REGLAS_DE_BUENAS_PR_CTICAS_Y_QU_NO_HACER_AL_REAL_978520F2("🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones<br/><small>4 nodes</small>")
+    class REGLAS_DE_BUENAS_PR_CTICAS_Y_QU_NO_HACER_AL_REAL_978520F2 module;
     RULES_GRAPHIFY_MD_3459230E("rules/graphify.md<br/><small>2 nodes</small>")
     class RULES_GRAPHIFY_MD_3459230E module;
     WORKFLOWS_GRAPHIFY_MD_C6A40BAC("workflows/graphify.md<br/><small>2 nodes</small>")
     class WORKFLOWS_GRAPHIFY_MD_C6A40BAC module;
+    SW_JS_36209973("sw.js<br/><small>1 nodes</small>")
+    class SW_JS_36209973 module;
+    REGISTERSW_JS_342D7131("registerSW.js<br/><small>1 nodes</small>")
+    class REGISTERSW_JS_342D7131 module;
     VITE_CONFIG_JS_25BB7A32("vite.config.js<br/><small>1 nodes</small>")
     class VITE_CONFIG_JS_25BB7A32 module;
-    APP_JSX_9B389801 -->|contains x6| CLI_SKILLS_9964CBB8
-    APP_JSX_9B389801 -->|contains x5| ADDDAYS_43AE2B07
-    APP_JSX_9B389801 -->|contains x5| EMPTYBLOCK_91B27F4A
-    APP_JSX_9B389801 -->|imports x4| AUTH_JSX_94CDC346
-    CLI_SKILLS_9964CBB8 -->|calls x2| ADDDAYS_43AE2B07
-    CLI_SKILLS_9964CBB8 -->|calls x2| EMPTYBLOCK_91B27F4A
-    EMPTYBLOCK_91B27F4A -->|calls x2| CLI_SKILLS_9964CBB8
-    ADDDAYS_43AE2B07 -->|calls| CLI_SKILLS_9964CBB8
-    ADDDAYS_43AE2B07 -->|calls| EMPTYBLOCK_91B27F4A
+    APP_JSX_9B389801 -->|contains x10| TODAYSTR_BD253026
+    APP_JSX_9B389801 -->|contains x10| CLI_SKILLS_9964CBB8
+    TODAYSTR_BD253026 -->|calls x5| CLI_SKILLS_9964CBB8
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
     classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
@@ -131,36 +128,36 @@ flowchart LR
     <h4>Architecture Layers</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
-      <tr><td>Graph Build</td><td>44</td><td><code>0, 2, 4, 5</code></td></tr><tr><td>CLI &amp; Skill Installers</td><td>6</td><td><code>6</code></td></tr><tr><td>App.jsx</td><td>14</td><td><code>1</code></td></tr><tr><td>index.js</td><td>10</td><td><code>3</code></td></tr><tr><td>Espacio — tu mini-Notion instalable</td><td>7</td><td><code>8</code></td></tr><tr><td>Auth.jsx</td><td>6</td><td><code>12</code></td></tr><tr><td>emptyBlock</td><td>5</td><td><code>13</code></td></tr><tr><td>addDays</td><td>5</td><td><code>7</code></td></tr><tr><td>rules/graphify.md</td><td>2</td><td><code>10</code></td></tr><tr><td>workflows/graphify.md</td><td>2</td><td><code>11</code></td></tr><tr><td>vite.config.js</td><td>1</td><td><code>9</code></td></tr>
+      <tr><td>Graph Build</td><td>50</td><td><code>4, 2, 0</code></td></tr><tr><td>CLI &amp; Skill Installers</td><td>10</td><td><code>5</code></td></tr><tr><td>App.jsx</td><td>29</td><td><code>1</code></td></tr><tr><td>index.js</td><td>10</td><td><code>3</code></td></tr><tr><td>todayStr</td><td>10</td><td><code>7</code></td></tr><tr><td>Espacio — tu mini-Notion instalable</td><td>7</td><td><code>8</code></td></tr><tr><td>🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones</td><td>4</td><td><code>6</code></td></tr><tr><td>rules/graphify.md</td><td>2</td><td><code>10</code></td></tr><tr><td>workflows/graphify.md</td><td>2</td><td><code>11</code></td></tr><tr><td>sw.js</td><td>1</td><td><code>14</code></td></tr><tr><td>registerSW.js</td><td>1</td><td><code>15</code></td></tr><tr><td>vite.config.js</td><td>1</td><td><code>9</code></td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Core Flow</h4>
-    <div class="arrow-chain">Graph Build -&gt; CLI &amp; Skill Installers -&gt; emptyBlock -&gt; App.jsx -&gt; addDays -&gt; index.js -&gt; Espacio — tu mini-Notion instalable</div>
+    <div class="arrow-chain">Graph Build -&gt; CLI &amp; Skill Installers -&gt; App.jsx -&gt; todayStr -&gt; index.js -&gt; Espacio — tu mini-Notion instalable -&gt; 🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones</div>
   </div>
 </div>
 <div class="grid">
   <div class="card">
     <h4>Graph Report Highlights</h4>
     <ul>
-      <li>102 nodes · 126 edges · 14 communities (11 shown, 3 thin omitted)</li>
+      <li>127 nodes · 155 edges · 14 communities (12 shown, 2 thin omitted)</li>
       <li>Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS</li>
       <li>Token cost: 0 input · 0 output</li>
-      <li>1. `App()` - 8 edges</li>
-      <li>2. `todayStr()` - 6 edges</li>
-      <li>3. `emptyBlock()` - 6 edges</li>
+      <li>1. `App()` - 10 edges</li>
+      <li>2. `todayStr()` - 7 edges</li>
+      <li>3. `uid()` - 6 edges</li>
     </ul>
   </div>
 </div>
 <hr>
 <!-- ====== 2. Graph Build ====== -->
 <h2 id="build-graph">2. Graph Build</h2>
-<p>Graph Build groups implementation around packagejson, server, react, vite, mostly in package.json, server/package.json. This section covers 44 nodes and 42 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>Graph Build groups implementation around packagejson, server, react, vite, mostly in package.json, server/package.json. This section covers 50 nodes and 48 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Graph Build (44 nodes, 42 edges)
+    %% Section: Graph Build (50 nodes, 48 edges)
     package_dependencies_lucide_react_17f0074f("lucide-react<br/><small>package.json</small>")
     package_dependencies_react_a04d7d7e("react<br/><small>package.json</small>")
     package_dependencies_react_dom_87814871("react-dom<br/><small>package.json</small>")
@@ -188,7 +185,7 @@ flowchart LR
     package_devdependencies_tailwindcss_9686c9d3 -->|imports| tailwindcss_34a67857
     package_devdependencies_vite_7fdfa80e -->|imports| vite_9907d3c4
     package_devdependencies_vite_plugin_pwa_84e6e578 -->|imports| vite_plugin_pwa_5fca3a8e
-    %% Omitted for readability: 26 nodes, 0 edges
+    %% Omitted for readability: 32 nodes, 0 edges
     class package_dependencies_lucide_react_17f0074f function;
     class package_dependencies_react_a04d7d7e function;
     class package_dependencies_react_dom_87814871 function;
@@ -230,214 +227,6 @@ flowchart LR
 </tr>
 <tr>
   <td>1</td>
-  <td><code>server/package.json</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>server/package.json node in server/package.json.</td>
-</tr>
-<tr>
-  <td>2</td>
-  <td><code>name</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>name node in server/package.json.</td>
-</tr>
-<tr>
-  <td>3</td>
-  <td><code>version</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>version node in server/package.json.</td>
-</tr>
-<tr>
-  <td>4</td>
-  <td><code>description</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>description node in server/package.json.</td>
-</tr>
-<tr>
-  <td>5</td>
-  <td><code>main</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>main node in server/package.json.</td>
-</tr>
-<tr>
-  <td>6</td>
-  <td><code>type</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>type node in server/package.json.</td>
-</tr>
-<tr>
-  <td>7</td>
-  <td><code>scripts</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>scripts node in server/package.json.</td>
-</tr>
-<tr>
-  <td>8</td>
-  <td><code>start</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>start node in server/package.json.</td>
-</tr>
-<tr>
-  <td>9</td>
-  <td><code>dependencies</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>dependencies node in server/package.json.</td>
-</tr>
-<tr>
-  <td>10</td>
-  <td><code>cors</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>cors</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>cors node in server/package.json.</td>
-</tr>
-<tr>
-  <td>11</td>
-  <td><code>cors</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>cors</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>cors node in server/package.json.</td>
-</tr>
-<tr>
-  <td>12</td>
-  <td><code>express</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>express</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>express node in server/package.json.</td>
-</tr>
-<tr>
-  <td>13</td>
-  <td><code>express</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>express</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>express node in server/package.json.</td>
-</tr>
-<tr>
-  <td>14</td>
-  <td><code>sqlite3</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>sqlite3</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>sqlite3 node in server/package.json.</td>
-</tr>
-<tr>
-  <td>15</td>
-  <td><code>sqlite3</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>sqlite3</code><br><small style="color:var(--muted)">server/package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>sqlite3 node in server/package.json.</td>
-</tr>
-<tr>
-  <td>16</td>
-  <td><code>devDependencies</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>devDependencies node in package.json.</td>
-</tr>
-<tr>
-  <td>17</td>
-  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>@tailwindcss/vite node in package.json.</td>
-</tr>
-<tr>
-  <td>18</td>
-  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>@tailwindcss/vite node in package.json.</td>
-</tr>
-<tr>
-  <td>19</td>
-  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>@vitejs/plugin-react node in package.json.</td>
-</tr>
-<tr>
-  <td>20</td>
-  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>@vitejs/plugin-react node in package.json.</td>
-</tr>
-<tr>
-  <td>21</td>
-  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>tailwindcss node in package.json.</td>
-</tr>
-<tr>
-  <td>22</td>
-  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>tailwindcss node in package.json.</td>
-</tr>
-<tr>
-  <td>23</td>
-  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>vite node in package.json.</td>
-</tr>
-<tr>
-  <td>24</td>
-  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>vite node in package.json.</td>
-</tr>
-<tr>
-  <td>25</td>
-  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>vite-plugin-pwa node in package.json.</td>
-</tr>
-<tr>
-  <td>26</td>
-  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
-  <td>No direct outbound edge</td>
-  <td>vite-plugin-pwa node in package.json.</td>
-</tr>
-<tr>
-  <td>27</td>
   <td><code>package.json</code><br><small style="color:var(--muted)">package.json</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -445,7 +234,7 @@ flowchart LR
   <td>package.json node in package.json.</td>
 </tr>
 <tr>
-  <td>28</td>
+  <td>2</td>
   <td><code>name</code><br><small style="color:var(--muted)">package.json</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -453,7 +242,7 @@ flowchart LR
   <td>name node in package.json.</td>
 </tr>
 <tr>
-  <td>29</td>
+  <td>3</td>
   <td><code>private</code><br><small style="color:var(--muted)">package.json</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -461,12 +250,220 @@ flowchart LR
   <td>private node in package.json.</td>
 </tr>
 <tr>
-  <td>30</td>
+  <td>4</td>
   <td><code>version</code><br><small style="color:var(--muted)">package.json</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
   <td>version node in package.json.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>type</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>type node in package.json.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>scripts</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>scripts node in package.json.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>dev</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>dev node in package.json.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>build</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>build node in package.json.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>preview</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>preview node in package.json.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>dependencies</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>dependencies node in package.json.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>@supabase/supabase-js</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>@supabase/supabase-js</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>@supabase/supabase-js node in package.json.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>@supabase/supabase-js</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>@supabase/supabase-js</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>@supabase/supabase-js node in package.json.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>lucide-react node in package.json.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>lucide-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>lucide-react node in package.json.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>react node in package.json.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>react node in package.json.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>react-dom node in package.json.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>react-dom</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>react-dom node in package.json.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>devDependencies</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>devDependencies node in package.json.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>@tailwindcss/vite node in package.json.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>@tailwindcss/vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>@tailwindcss/vite node in package.json.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>@vitejs/plugin-react node in package.json.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>@vitejs/plugin-react</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>@vitejs/plugin-react node in package.json.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>tailwindcss node in package.json.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>tailwindcss</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>tailwindcss node in package.json.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>vite node in package.json.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>vite</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>vite node in package.json.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>vite-plugin-pwa node in package.json.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>vite-plugin-pwa</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>No direct outbound edge</td>
+  <td>vite-plugin-pwa node in package.json.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>vite-plugin-qrcode</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>vite-plugin-qrcode</code><br><small style="color:var(--muted)">package.json</small></td>
+  <td>vite-plugin-qrcode node in package.json.</td>
 </tr>
 </table>
 
@@ -475,46 +472,60 @@ flowchart LR
     <h4>Key Files</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>package.json</code></td><td>29 nodes</td></tr>
+      <tr><td><code>package.json</code></td><td>35 nodes</td></tr>
 <tr><td><code>server/package.json</code></td><td>15 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: contains x30, imports x12. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x33, imports x15. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
 
 <!-- ====== 3. CLI & Skill Installers ====== -->
 <h2 id="cli-skills">3. CLI &amp; Skill Installers</h2>
-<p>CLI &amp; Skill Installers groups implementation around appjsx, mainjsx, pad, tostr, mostly in src/App.jsx, src/main.jsx. This section covers 6 nodes and 8 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>CLI &amp; Skill Installers groups implementation around appjsx, mainjsx, uid, urlbase64touint8array, mostly in src/App.jsx, src/main.jsx. This section covers 10 nodes and 14 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: CLI &amp; Skill Installers (6 nodes, 8 edges)
+    %% Section: CLI &amp; Skill Installers (10 nodes, 14 edges)
     subgraph cli_skills_src_App_jsx_215f65e2["src/App.jsx"]
-        src_app_pad_1d8410ec("pad()<br/><small>src/App.jsx</small>")
-        src_app_todaystr_17225e19("todayStr()<br/><small>src/App.jsx</small>")
-        src_app_tostr_3cc49069("toStr()<br/><small>src/App.jsx</small>")
+        src_app_uid_7c5904f2("uid()<br/><small>src/App.jsx</small>")
+        src_app_emptyblock_aefa3bd8("emptyBlock()<br/><small>src/App.jsx</small>")
+        src_app_urlbase64touint8array_bea46af8("urlBase64ToUint8Array()<br/><small>src/App.jsx</small>")
+        src_app_newpage_f06d20fa("newPage()<br/><small>src/App.jsx</small>")
         src_app_app_f316b20d("App()<br/><small>src/App.jsx</small>")
-        src_app_calendarview_8fa3ba42("CalendarView()<br/><small>src/App.jsx</small>")
+        src_app_audioblock_eee9c287("AudioBlock()<br/><small>src/App.jsx</small>")
+        src_app_imageblock_352082d7("ImageBlock()<br/><small>src/App.jsx</small>")
+        src_app_editor_8554e65d("Editor()<br/><small>src/App.jsx</small>")
+        src_app_seedworkspace_ec992fa3("seedWorkspace()<br/><small>src/App.jsx</small>")
     end
     src_main_3231ff52("main.jsx")
-    src_app_pad_1d8410ec -->|calls| src_app_app_f316b20d
-    src_app_pad_1d8410ec -->|calls| src_app_calendarview_8fa3ba42
-    src_app_pad_1d8410ec -->|calls| src_app_tostr_3cc49069
-    src_app_tostr_3cc49069 -->|calls| src_app_app_f316b20d
-    src_app_tostr_3cc49069 -->|calls| src_app_todaystr_17225e19
-    src_app_todaystr_17225e19 -->|calls| src_app_app_f316b20d
-    src_app_todaystr_17225e19 -->|calls| src_app_calendarview_8fa3ba42
+    src_app_uid_7c5904f2 -->|calls| src_app_app_f316b20d
+    src_app_uid_7c5904f2 -->|calls| src_app_audioblock_eee9c287
+    src_app_uid_7c5904f2 -->|calls| src_app_emptyblock_aefa3bd8
+    src_app_uid_7c5904f2 -->|calls| src_app_imageblock_352082d7
+    src_app_uid_7c5904f2 -->|calls| src_app_newpage_f06d20fa
+    src_app_urlbase64touint8array_bea46af8 -->|calls| src_app_app_f316b20d
+    src_app_emptyblock_aefa3bd8 -->|calls| src_app_app_f316b20d
+    src_app_emptyblock_aefa3bd8 -->|calls| src_app_editor_8554e65d
+    src_app_emptyblock_aefa3bd8 -->|calls| src_app_newpage_f06d20fa
+    src_app_emptyblock_aefa3bd8 -->|calls| src_app_seedworkspace_ec992fa3
+    src_app_newpage_f06d20fa -->|calls| src_app_app_f316b20d
+    src_app_newpage_f06d20fa -->|calls| src_app_seedworkspace_ec992fa3
+    src_app_app_f316b20d -->|calls| src_app_seedworkspace_ec992fa3
     src_app_app_f316b20d -->|imports| src_main_3231ff52
-    class src_app_pad_1d8410ec ui;
-    class src_app_todaystr_17225e19 ui;
-    class src_app_tostr_3cc49069 ui;
+    class src_app_uid_7c5904f2 ui;
+    class src_app_emptyblock_aefa3bd8 ui;
+    class src_app_urlbase64touint8array_bea46af8 ui;
+    class src_app_newpage_f06d20fa ui;
     class src_app_app_f316b20d ui;
-    class src_app_calendarview_8fa3ba42 ui;
+    class src_app_audioblock_eee9c287 ui;
+    class src_app_imageblock_352082d7 ui;
+    class src_app_editor_8554e65d ui;
+    class src_app_seedworkspace_ec992fa3 ui;
     class src_main_3231ff52 ui;
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
@@ -539,46 +550,78 @@ flowchart LR
 </tr>
 <tr>
   <td>1</td>
-  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
-  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>pad() node in src/App.jsx.</td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AudioBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br>+2 more</td>
+  <td>uid() node in src/App.jsx.</td>
 </tr>
 <tr>
   <td>2</td>
-  <td><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>urlBase64ToUint8Array()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
-  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>toStr() node in src/App.jsx.</td>
+  <td>External entry / no inbound edge</td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>urlBase64ToUint8Array() node in src/App.jsx.</td>
 </tr>
 <tr>
   <td>3</td>
-  <td><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
-  <td><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>todayStr() node in src/App.jsx.</td>
+  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>Editor()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small><br>+1 more</td>
+  <td>emptyBlock() node in src/App.jsx.</td>
 </tr>
 <tr>
   <td>4</td>
-  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
-  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>main.jsx</code><br><small style="color:var(--muted)">src/main.jsx</small></td>
-  <td>App() node in src/App.jsx.</td>
+  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>Organizes documentation pages, navigation, or content lookup.</td>
 </tr>
 <tr>
   <td>5</td>
-  <td><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
-  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>CalendarView() node in src/App.jsx.</td>
+  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small><br>+1 more</td>
+  <td><code>main.jsx</code><br><small style="color:var(--muted)">src/main.jsx</small><br><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>App() node in src/App.jsx.</td>
 </tr>
 <tr>
   <td>6</td>
+  <td><code>Editor()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Editor() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>ImageBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>ImageBlock() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>AudioBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>AudioBlock() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>seedWorkspace() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>10</td>
   <td><code>main.jsx</code><br><small style="color:var(--muted)">src/main.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td><code>App()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
@@ -592,66 +635,74 @@ flowchart LR
     <h4>Key Files</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>src/App.jsx</code></td><td>5 nodes</td></tr>
+      <tr><td><code>src/App.jsx</code></td><td>9 nodes</td></tr>
 <tr><td><code>src/main.jsx</code></td><td>1 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: calls x7, imports x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x13, imports x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
 
 <!-- ====== 4. App.jsx ====== -->
 <h2 id="app-jsx">4. App.jsx</h2>
-<p>App.jsx groups implementation around appjsx, months, block, store, mostly in src/App.jsx. This section covers 14 nodes and 13 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>App.jsx groups implementation around appjsx, authjsx, supabasejs, months, mostly in src/App.jsx, src/Auth.jsx, src/supabase.js. This section covers 29 nodes and 32 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: App.jsx (14 nodes, 13 edges)
-    src_app_46efd68e("App.jsx")
-    src_app_block_39c578a6("Block()<br/><small>src/App.jsx</small>")
-    src_app_block_menu_d5e712ac("BLOCK_MENU<br/><small>src/App.jsx</small>")
-    src_app_emojis_543173f4("EMOJIS<br/><small>src/App.jsx</small>")
-    src_app_menulist_ccc69c59("MenuList()<br/><small>src/App.jsx</small>")
-    src_app_months_4f8efeb0("MONTHS<br/><small>src/App.jsx</small>")
-    src_app_months_s_00b08af6("MONTHS_S<br/><small>src/App.jsx</small>")
-    src_app_pagerow_64a71afd("PageRow()<br/><small>src/App.jsx</small>")
-    src_app_settingsmodal_a58103f3("SettingsModal()<br/><small>src/App.jsx</small>")
-    src_app_store_c2c50b0b("store<br/><small>src/App.jsx</small>")
-    src_app_t_54375a55("T<br/><small>src/App.jsx</small>")
-    src_app_tree_bb5ba2b0("Tree()<br/><small>src/App.jsx</small>")
-    src_app_type_style_d4f847e6("TYPE_STYLE<br/><small>src/App.jsx</small>")
-    src_app_week_s_8d776ab5("WEEK_S<br/><small>src/App.jsx</small>")
-    src_app_46efd68e -->|contains| src_app_block_39c578a6
-    src_app_46efd68e -->|contains| src_app_block_menu_d5e712ac
-    src_app_46efd68e -->|contains| src_app_emojis_543173f4
-    src_app_46efd68e -->|contains| src_app_menulist_ccc69c59
-    src_app_46efd68e -->|contains| src_app_months_4f8efeb0
-    src_app_46efd68e -->|contains| src_app_months_s_00b08af6
-    src_app_46efd68e -->|contains| src_app_pagerow_64a71afd
-    src_app_46efd68e -->|contains| src_app_settingsmodal_a58103f3
-    src_app_46efd68e -->|contains| src_app_store_c2c50b0b
-    src_app_46efd68e -->|contains| src_app_t_54375a55
-    src_app_46efd68e -->|contains| src_app_tree_bb5ba2b0
-    src_app_46efd68e -->|contains| src_app_type_style_d4f847e6
-    src_app_46efd68e -->|contains| src_app_week_s_8d776ab5
+    %% Section: App.jsx (29 nodes, 32 edges)
+    subgraph app_jsx_src_App_jsx_213037b1["src/App.jsx"]
+        src_app_46efd68e("App.jsx")
+        src_app_admindashboardview_4c451938("AdminDashboardView()<br/><small>src/App.jsx</small>")
+        src_app_block_menu_d5e712ac("BLOCK_MENU<br/><small>src/App.jsx</small>")
+        src_app_block_39c578a6("Block()<br/><small>src/App.jsx</small>")
+        src_app_deleteaccounttermsmodal_7585263d("DeleteAccountTermsModal()<br/><small>src/App.jsx</small>")
+        src_app_emojis_543173f4("EMOJIS<br/><small>src/App.jsx</small>")
+        src_app_folder_palette_c2e8eba1("FOLDER_PALETTE<br/><small>src/App.jsx</small>")
+        src_app_foldereditmodal_0e38b697("FolderEditModal()<br/><small>src/App.jsx</small>")
+        src_app_folderrow_d9137264("FolderRow()<br/><small>src/App.jsx</small>")
+        src_app_imageeditormodal_e962dd07("ImageEditorModal()<br/><small>src/App.jsx</small>")
+        src_app_linkblock_ad3e8d51("LinkBlock()<br/><small>src/App.jsx</small>")
+        src_app_months_4f8efeb0("MONTHS<br/><small>src/App.jsx</small>")
+        src_app_months_s_00b08af6("MONTHS_S<br/><small>src/App.jsx</small>")
+        src_app_menulist_ccc69c59("MenuList()<br/><small>src/App.jsx</small>")
+    end
+    subgraph app_jsx_src_Auth_jsx_e5ccf10f["src/Auth.jsx"]
+        src_auth_06b7e4e8("Auth.jsx")
+        src_auth_auth_29251b51("Auth()<br/><small>src/Auth.jsx</small>")
+    end
+    subgraph app_jsx_src_supabase_js_bd4066be["src/supabase.js"]
+        src_supabase_06ca8929("supabase.js")
+        src_supabase_supabase_e581e630("supabase<br/><small>src/supabase.js</small>")
+    end
+    src_app_46efd68e -->|imports| src_auth_06b7e4e8
+    src_app_46efd68e -->|imports| src_auth_auth_29251b51
+    src_app_46efd68e -->|imports| src_supabase_06ca8929
+    src_app_46efd68e -->|imports| src_supabase_supabase_e581e630
+    src_auth_06b7e4e8 -->|imports| src_supabase_06ca8929
+    src_auth_06b7e4e8 -->|imports| src_supabase_supabase_e581e630
+    %% Omitted for readability: 11 nodes, 0 edges
     class src_app_46efd68e ui;
-    class src_app_block_39c578a6 ui;
+    class src_app_admindashboardview_4c451938 ui;
     class src_app_block_menu_d5e712ac ui;
+    class src_app_block_39c578a6 ui;
+    class src_app_deleteaccounttermsmodal_7585263d ui;
     class src_app_emojis_543173f4 ui;
-    class src_app_menulist_ccc69c59 ui;
+    class src_app_folder_palette_c2e8eba1 ui;
+    class src_app_foldereditmodal_0e38b697 ui;
+    class src_app_folderrow_d9137264 ui;
+    class src_app_imageeditormodal_e962dd07 ui;
+    class src_app_linkblock_ad3e8d51 ui;
     class src_app_months_4f8efeb0 ui;
     class src_app_months_s_00b08af6 ui;
-    class src_app_pagerow_64a71afd ui;
-    class src_app_settingsmodal_a58103f3 ui;
-    class src_app_store_c2c50b0b ui;
-    class src_app_t_54375a55 ui;
-    class src_app_tree_bb5ba2b0 ui;
-    class src_app_type_style_d4f847e6 ui;
-    class src_app_week_s_8d776ab5 ui;
+    class src_app_menulist_ccc69c59 ui;
+    class src_auth_06b7e4e8 ui;
+    class src_auth_auth_29251b51 ui;
+    class src_supabase_06ca8929 module;
+    class src_supabase_supabase_e581e630 function;
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
     classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
@@ -678,7 +729,7 @@ flowchart LR
   <td><code>App.jsx</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
+  <td><code>Auth()</code><br><small style="color:var(--muted)">src/Auth.jsx</small><br><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small><br><code>supabase</code><br><small style="color:var(--muted)">src/supabase.js</small><br>+1 more</td>
   <td>App.jsx node in src/App.jsx.</td>
 </tr>
 <tr>
@@ -731,6 +782,14 @@ flowchart LR
 </tr>
 <tr>
   <td>8</td>
+  <td><code>DeleteAccountTermsModal()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>DeleteAccountTermsModal() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>9</td>
   <td><code>SettingsModal()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -738,7 +797,15 @@ flowchart LR
   <td>SettingsModal() node in src/App.jsx.</td>
 </tr>
 <tr>
-  <td>9</td>
+  <td>10</td>
+  <td><code>ImageEditorModal()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ImageEditorModal() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>11</td>
   <td><code>Tree()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -746,7 +813,31 @@ flowchart LR
   <td>Tree() node in src/App.jsx.</td>
 </tr>
 <tr>
-  <td>10</td>
+  <td>12</td>
+  <td><code>FolderRow()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>FolderRow() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>FOLDER_PALETTE</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>FOLDER_PALETTE node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>FolderEditModal()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>FolderEditModal() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>15</td>
   <td><code>PageRow()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -754,7 +845,31 @@ flowchart LR
   <td>Organizes documentation pages, navigation, or content lookup.</td>
 </tr>
 <tr>
-  <td>11</td>
+  <td>16</td>
+  <td><code>ShareModal()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ShareModal() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>NotificationPanel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>NotificationPanel() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>LinkBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>LinkBlock() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>19</td>
   <td><code>Block()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -762,7 +877,7 @@ flowchart LR
   <td>Block() node in src/App.jsx.</td>
 </tr>
 <tr>
-  <td>12</td>
+  <td>20</td>
   <td><code>MenuList()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -770,7 +885,7 @@ flowchart LR
   <td>MenuList() node in src/App.jsx.</td>
 </tr>
 <tr>
-  <td>13</td>
+  <td>21</td>
   <td><code>TYPE_STYLE</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
@@ -778,12 +893,68 @@ flowchart LR
   <td>TYPE_STYLE node in src/App.jsx.</td>
 </tr>
 <tr>
-  <td>14</td>
+  <td>22</td>
   <td><code>T</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
   <td><span class="tag tag-hook">UI</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
   <td>T node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>AdminDashboardView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>AdminDashboardView() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>TrashView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>TrashView() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.jsx</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>supabase</code><br><small style="color:var(--muted)">src/supabase.js</small><br><code>supabase.js</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
+  <td>Auth.jsx node in src/Auth.jsx.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>GoogleIcon()</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GoogleIcon() node in src/Auth.jsx.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>Auth()</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>App.jsx</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Auth() node in src/Auth.jsx.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>supabase.js</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>App.jsx</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>supabase.js node in src/supabase.js.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>supabase</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>App.jsx</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>supabase node in src/supabase.js.</td>
 </tr>
 </table>
 
@@ -792,12 +963,14 @@ flowchart LR
     <h4>Key Files</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>src/App.jsx</code></td><td>14 nodes</td></tr>
+      <tr><td><code>src/App.jsx</code></td><td>24 nodes</td></tr>
+<tr><td><code>src/Auth.jsx</code></td><td>3 nodes</td></tr>
+<tr><td><code>src/supabase.js</code></td><td>2 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: contains x13. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x26, imports x3, imports x3. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
@@ -957,8 +1130,170 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 6. Espacio — tu mini-Notion instalable ====== -->
-<h2 id="espacio-tu-mini-notion-instalable">6. Espacio — tu mini-Notion instalable</h2>
+<!-- ====== 6. todayStr ====== -->
+<h2 id="todaystr">6. todayStr</h2>
+<p>todayStr groups implementation around appjsx, pad, tostr, todaystr, mostly in src/App.jsx. This section covers 10 nodes and 16 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: todayStr (10 nodes, 16 edges)
+    src_app_fromstr_acecc207("fromStr()<br/><small>src/App.jsx</small>")
+    src_app_todaystr_17225e19("todayStr()<br/><small>src/App.jsx</small>")
+    src_app_tostr_3cc49069("toStr()<br/><small>src/App.jsx</small>")
+    src_app_pad_1d8410ec("pad()<br/><small>src/App.jsx</small>")
+    src_app_chiplabel_6bcb0723("chipLabel()<br/><small>src/App.jsx</small>")
+    src_app_adddays_17c8283e("addDays()<br/><small>src/App.jsx</small>")
+    src_app_calendarview_8fa3ba42("CalendarView()<br/><small>src/App.jsx</small>")
+    src_app_analyticsview_5a038bde("AnalyticsView()<br/><small>src/App.jsx</small>")
+    src_app_agendaview_07593c51("AgendaView()<br/><small>src/App.jsx</small>")
+    src_app_datechip_a05b7202("DateChip()<br/><small>src/App.jsx</small>")
+    src_app_pad_1d8410ec -->|calls| src_app_calendarview_8fa3ba42
+    src_app_pad_1d8410ec -->|calls| src_app_tostr_3cc49069
+    src_app_tostr_3cc49069 -->|calls| src_app_adddays_17c8283e
+    src_app_tostr_3cc49069 -->|calls| src_app_analyticsview_5a038bde
+    src_app_tostr_3cc49069 -->|calls| src_app_todaystr_17225e19
+    src_app_todaystr_17225e19 -->|calls| src_app_agendaview_07593c51
+    src_app_todaystr_17225e19 -->|calls| src_app_analyticsview_5a038bde
+    src_app_todaystr_17225e19 -->|calls| src_app_calendarview_8fa3ba42
+    src_app_fromstr_acecc207 -->|calls| src_app_adddays_17c8283e
+    src_app_fromstr_acecc207 -->|calls| src_app_agendaview_07593c51
+    src_app_fromstr_acecc207 -->|calls| src_app_analyticsview_5a038bde
+    src_app_fromstr_acecc207 -->|calls| src_app_calendarview_8fa3ba42
+    src_app_fromstr_acecc207 -->|calls| src_app_chiplabel_6bcb0723
+    src_app_adddays_17c8283e -->|calls| src_app_agendaview_07593c51
+    src_app_chiplabel_6bcb0723 -->|calls| src_app_agendaview_07593c51
+    src_app_chiplabel_6bcb0723 -->|calls| src_app_datechip_a05b7202
+    class src_app_fromstr_acecc207 ui;
+    class src_app_todaystr_17225e19 ui;
+    class src_app_tostr_3cc49069 ui;
+    class src_app_pad_1d8410ec ui;
+    class src_app_chiplabel_6bcb0723 ui;
+    class src_app_adddays_17c8283e ui;
+    class src_app_calendarview_8fa3ba42 ui;
+    class src_app_analyticsview_5a038bde ui;
+    class src_app_agendaview_07593c51 ui;
+    class src_app_datechip_a05b7202 ui;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>pad() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AnalyticsView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>toStr() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AnalyticsView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>todayStr() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AnalyticsView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br>+2 more</td>
+  <td>fromStr() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>addDays() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>DateChip()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>chipLabel() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>CalendarView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>pad()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>CalendarView() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br>+1 more</td>
+  <td>No direct outbound edge</td>
+  <td>AgendaView() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>DateChip()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>DateChip() node in src/App.jsx.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>AnalyticsView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>todayStr()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>toStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>src/App.jsx</code></td><td>10 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x16. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Espacio — tu mini-Notion instalable ====== -->
+<h2 id="espacio-tu-mini-notion-instalable">7. Espacio — tu mini-Notion instalable</h2>
 <p>Espacio — tu mini-Notion instalable groups implementation around readmemd, espacio, mini, notion, mostly in README.md. This section covers 7 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -1079,32 +1414,25 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 7. Auth.jsx ====== -->
-<h2 id="auth-jsx">7. Auth.jsx</h2>
-<p>Auth.jsx groups implementation around authjsx, supabasejs, googleicon, microsofticon, mostly in src/Auth.jsx, src/supabase.js. This section covers 6 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<!-- ====== 8. 🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones ====== -->
+<h2 id="reglas-de-buenas-pr-cticas-y-qu-no-hacer-al-real">8. 🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones</h2>
+<p>🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones groups implementation around reglas, correccionesmd, hacer, qué, mostly in REGLAS_CORRECCIONES.md. This section covers 4 nodes and 3 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Auth.jsx (6 nodes, 6 edges)
-    subgraph auth_jsx_src_Auth_jsx_6dcfe5d0["src/Auth.jsx"]
-        src_auth_06b7e4e8("Auth.jsx")
-        src_auth_auth_29251b51("Auth()<br/><small>src/Auth.jsx</small>")
-        src_auth_googleicon_0d13b5b4("GoogleIcon()<br/><small>src/Auth.jsx</small>")
-        src_auth_microsofticon_2493cd7d("MicrosoftIcon()<br/><small>src/Auth.jsx</small>")
-    end
-    subgraph auth_jsx_src_supabase_js_aab8ef29["src/supabase.js"]
-        src_supabase_06ca8929("supabase.js")
-        src_supabase_supabase_e581e630("supabase<br/><small>src/supabase.js</small>")
-    end
-    src_auth_06b7e4e8 -->|imports| src_supabase_06ca8929
-    src_auth_06b7e4e8 -->|imports| src_supabase_supabase_e581e630
-    class src_auth_06b7e4e8 ui;
-    class src_auth_auth_29251b51 ui;
-    class src_auth_googleicon_0d13b5b4 ui;
-    class src_auth_microsofticon_2493cd7d ui;
-    class src_supabase_06ca8929 module;
-    class src_supabase_supabase_e581e630 function;
+    %% Section: 🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones (4 nodes, 3 edges)
+    reglas_correcciones_reglas_de_buenas_pr_cticas_y_cb76361f("🛡️ Reglas de Buenas Prácticas y Qué NO...<br/><small>REGLAS_CORRECCIONES.md</small>")
+    reglas_correcciones_30b0ffe8("REGLAS_CORRECCIONES.md")
+    reglas_correcciones_lista_de_verificaci_n_checkl_2c799377("✅ Lista de Verificación (Checklist) Ant...<br/><small>REGLAS_CORRECCIONES.md</small>")
+    reglas_correcciones_qu_no_hacer_al_hacer_una_cor_2581c425("🚫 Qué NO Hacer al Hacer una Corrección<br/><small>REGLAS_CORRECCIONES.md</small>")
+    reglas_correcciones_30b0ffe8 -->|contains| reglas_correcciones_reglas_de_buenas_pr_cticas_y_cb76361f
+    reglas_correcciones_reglas_de_buenas_pr_cticas_y_cb76361f -->|contains| reglas_correcciones_lista_de_verificaci_n_checkl_2c799377
+    reglas_correcciones_reglas_de_buenas_pr_cticas_y_cb76361f -->|contains| reglas_correcciones_qu_no_hacer_al_hacer_una_cor_2581c425
+    class reglas_correcciones_reglas_de_buenas_pr_cticas_y_cb76361f concept;
+    class reglas_correcciones_30b0ffe8 concept;
+    class reglas_correcciones_lista_de_verificaci_n_checkl_2c799377 concept;
+    class reglas_correcciones_qu_no_hacer_al_hacer_una_cor_2581c425 concept;
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
     classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
@@ -1128,51 +1456,35 @@ flowchart LR
 </tr>
 <tr>
   <td>1</td>
-  <td><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>REGLAS_CORRECCIONES.md</code><br><small style="color:var(--muted)">REGLAS_CORRECCIONES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
-  <td><code>supabase</code><br><small style="color:var(--muted)">src/supabase.js</small><br><code>supabase.js</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
-  <td>Auth.jsx node in src/Auth.jsx.</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing REGLAS_CORRECCIONES.md.</td>
 </tr>
 <tr>
   <td>2</td>
-  <td><code>GoogleIcon()</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones</code><br><small style="color:var(--muted)">REGLAS_CORRECCIONES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
-  <td>GoogleIcon() node in src/Auth.jsx.</td>
+  <td>Documentation node describing 🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones.</td>
 </tr>
 <tr>
   <td>3</td>
-  <td><code>MicrosoftIcon()</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>🚫 Qué NO Hacer al Hacer una Corrección</code><br><small style="color:var(--muted)">REGLAS_CORRECCIONES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
-  <td>MicrosoftIcon() node in src/Auth.jsx.</td>
+  <td>Documentation node describing 🚫 Qué NO Hacer al Hacer una Corrección.</td>
 </tr>
 <tr>
   <td>4</td>
-  <td><code>Auth()</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
+  <td><code>✅ Lista de Verificación (Checklist) Antes de Cada Commit</code><br><small style="color:var(--muted)">REGLAS_CORRECCIONES.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
-  <td>Auth() node in src/Auth.jsx.</td>
-</tr>
-<tr>
-  <td>5</td>
-  <td><code>supabase.js</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
-  <td><span class="tag tag-class">Module</span></td>
-  <td><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>supabase.js node in src/supabase.js.</td>
-</tr>
-<tr>
-  <td>6</td>
-  <td><code>supabase</code><br><small style="color:var(--muted)">src/supabase.js</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>Auth.jsx</code><br><small style="color:var(--muted)">src/Auth.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>supabase node in src/supabase.js.</td>
+  <td>Documentation node describing ✅ Lista de Verificación (Checklist) Antes de Cada Commit.</td>
 </tr>
 </table>
 
@@ -1181,223 +1493,18 @@ flowchart LR
     <h4>Key Files</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>src/Auth.jsx</code></td><td>4 nodes</td></tr>
-<tr><td><code>src/supabase.js</code></td><td>2 nodes</td></tr>
+      <tr><td><code>REGLAS_CORRECCIONES.md</code></td><td>4 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: contains x4, imports x1, imports x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x3. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
 
-<!-- ====== 8. emptyBlock ====== -->
-<h2 id="emptyblock">8. emptyBlock</h2>
-<p>emptyBlock groups implementation around appjsx, uid, emptyblock, newpage, mostly in src/App.jsx. This section covers 5 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
-
-<div class="mermaid">
-%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
-flowchart LR
-    %% Section: emptyBlock (5 nodes, 6 edges)
-    src_app_emptyblock_aefa3bd8("emptyBlock()<br/><small>src/App.jsx</small>")
-    src_app_uid_7c5904f2("uid()<br/><small>src/App.jsx</small>")
-    src_app_newpage_f06d20fa("newPage()<br/><small>src/App.jsx</small>")
-    src_app_editor_8554e65d("Editor()<br/><small>src/App.jsx</small>")
-    src_app_seedworkspace_ec992fa3("seedWorkspace()<br/><small>src/App.jsx</small>")
-    src_app_uid_7c5904f2 -->|calls| src_app_emptyblock_aefa3bd8
-    src_app_uid_7c5904f2 -->|calls| src_app_newpage_f06d20fa
-    src_app_emptyblock_aefa3bd8 -->|calls| src_app_editor_8554e65d
-    src_app_emptyblock_aefa3bd8 -->|calls| src_app_newpage_f06d20fa
-    src_app_emptyblock_aefa3bd8 -->|calls| src_app_seedworkspace_ec992fa3
-    src_app_newpage_f06d20fa -->|calls| src_app_seedworkspace_ec992fa3
-    class src_app_emptyblock_aefa3bd8 ui;
-    class src_app_uid_7c5904f2 ui;
-    class src_app_newpage_f06d20fa ui;
-    class src_app_editor_8554e65d ui;
-    class src_app_seedworkspace_ec992fa3 ui;
-    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
-    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
-    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
-    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
-    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
-    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
-    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
-    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
-    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
-</div>
-
-<h3>Call Details</h3>
-<table class="call-table">
-<tr>
-  <th style="width:5%">#</th>
-  <th style="width:28%">Node</th>
-  <th style="width:10%">Type</th>
-  <th style="width:17%">Caller</th>
-  <th style="width:20%">Callees</th>
-  <th style="width:20%">Description</th>
-</tr>
-<tr>
-  <td>1</td>
-  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>uid() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>2</td>
-  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>Editor()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>emptyBlock() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>3</td>
-  <td><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>uid()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>Organizes documentation pages, navigation, or content lookup.</td>
-</tr>
-<tr>
-  <td>4</td>
-  <td><code>Editor()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>Editor() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>5</td>
-  <td><code>seedWorkspace()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>emptyBlock()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>newPage()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>seedWorkspace() node in src/App.jsx.</td>
-</tr>
-</table>
-
-<div class="grid">
-  <div class="card">
-    <h4>Key Files</h4>
-    <table style="width:100%;font-size:0.85rem;">
-      <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>src/App.jsx</code></td><td>5 nodes</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: calls x6. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
-  </div>
-</div>
-<hr>
-
-<!-- ====== 9. addDays ====== -->
-<h2 id="adddays">9. addDays</h2>
-<p>addDays groups implementation around appjsx, fromstr, adddays, chiplabel, mostly in src/App.jsx. This section covers 5 nodes and 6 internal edges; the diagram shows only representative relationships to stay readable.</p>
-
-<div class="mermaid">
-%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
-flowchart LR
-    %% Section: addDays (5 nodes, 6 edges)
-    src_app_fromstr_acecc207("fromStr()<br/><small>src/App.jsx</small>")
-    src_app_chiplabel_6bcb0723("chipLabel()<br/><small>src/App.jsx</small>")
-    src_app_adddays_17c8283e("addDays()<br/><small>src/App.jsx</small>")
-    src_app_agendaview_07593c51("AgendaView()<br/><small>src/App.jsx</small>")
-    src_app_datechip_a05b7202("DateChip()<br/><small>src/App.jsx</small>")
-    src_app_fromstr_acecc207 -->|calls| src_app_adddays_17c8283e
-    src_app_fromstr_acecc207 -->|calls| src_app_agendaview_07593c51
-    src_app_fromstr_acecc207 -->|calls| src_app_chiplabel_6bcb0723
-    src_app_adddays_17c8283e -->|calls| src_app_agendaview_07593c51
-    src_app_chiplabel_6bcb0723 -->|calls| src_app_agendaview_07593c51
-    src_app_chiplabel_6bcb0723 -->|calls| src_app_datechip_a05b7202
-    class src_app_fromstr_acecc207 ui;
-    class src_app_chiplabel_6bcb0723 ui;
-    class src_app_adddays_17c8283e ui;
-    class src_app_agendaview_07593c51 ui;
-    class src_app_datechip_a05b7202 ui;
-    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
-    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
-    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
-    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
-    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
-    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
-    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
-    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
-    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
-</div>
-
-<h3>Call Details</h3>
-<table class="call-table">
-<tr>
-  <th style="width:5%">#</th>
-  <th style="width:28%">Node</th>
-  <th style="width:10%">Type</th>
-  <th style="width:17%">Caller</th>
-  <th style="width:20%">Callees</th>
-  <th style="width:20%">Description</th>
-</tr>
-<tr>
-  <td>1</td>
-  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>fromStr() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>2</td>
-  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>addDays() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>3</td>
-  <td><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>DateChip()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>chipLabel() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>4</td>
-  <td><code>AgendaView()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>addDays()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small><br><code>fromStr()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>AgendaView() node in src/App.jsx.</td>
-</tr>
-<tr>
-  <td>5</td>
-  <td><code>DateChip()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td><span class="tag tag-hook">UI</span></td>
-  <td><code>chipLabel()</code><br><small style="color:var(--muted)">src/App.jsx</small></td>
-  <td>No direct outbound edge</td>
-  <td>DateChip() node in src/App.jsx.</td>
-</tr>
-</table>
-
-<div class="grid">
-  <div class="card">
-    <h4>Key Files</h4>
-    <table style="width:100%;font-size:0.85rem;">
-      <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>src/App.jsx</code></td><td>5 nodes</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: calls x6. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
-  </div>
-</div>
-<hr>
-
-<!-- ====== 10. rules/graphify.md ====== -->
-<h2 id="rules-graphify-md">10. rules/graphify.md</h2>
+<!-- ====== 9. rules/graphify.md ====== -->
+<h2 id="rules-graphify-md">9. rules/graphify.md</h2>
 <p>rules/graphify.md groups implementation around rules, graphifymd, agents, graphify, mostly in .agents/rules/graphify.md. This section covers 2 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -1463,8 +1570,8 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 11. workflows/graphify.md ====== -->
-<h2 id="workflows-graphify-md">11. workflows/graphify.md</h2>
+<!-- ====== 10. workflows/graphify.md ====== -->
+<h2 id="workflows-graphify-md">10. workflows/graphify.md</h2>
 <p>workflows/graphify.md groups implementation around workflows, graphifymd, agents, workflow, mostly in .agents/workflows/graphify.md. This section covers 2 nodes and 1 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -1530,8 +1637,120 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 12. vite.config.js ====== -->
-<h2 id="vite-config-js">12. vite.config.js</h2>
+<!-- ====== 11. sw.js ====== -->
+<h2 id="sw-js">11. sw.js</h2>
+<p>sw.js groups implementation around swjs, mostly in src/sw.js. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: sw.js (1 nodes, 0 edges)
+    src_sw_5dff2d60("sw.js")
+    class src_sw_5dff2d60 module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>sw.js</code><br><small style="color:var(--muted)">src/sw.js</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>sw.js node in src/sw.js.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>src/sw.js</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 12. registerSW.js ====== -->
+<h2 id="registersw-js">12. registerSW.js</h2>
+<p>registerSW.js groups implementation around registerswjs, dev, dist, mostly in dev-dist/registerSW.js. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: registerSW.js (1 nodes, 0 edges)
+    dev_dist_registersw_f7ed75e8("registerSW.js")
+    class dev_dist_registersw_f7ed75e8 module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>registerSW.js</code><br><small style="color:var(--muted)">dev-dist/registerSW.js</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>registerSW.js node in dev-dist/registerSW.js.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>dev-dist/registerSW.js</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 13. vite.config.js ====== -->
+<h2 id="vite-config-js">13. vite.config.js</h2>
 <p>vite.config.js groups implementation around viteconfigjs, mostly in vite.config.js. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -1592,17 +1811,17 @@ flowchart LR
   <div class="card">
     <h4>Graph</h4>
     <table style="width:100%;font-size:0.85rem;">
-      <tr><td>Nodes</td><td>102</td></tr>
-      <tr><td>Edges</td><td>126</td></tr>
+      <tr><td>Nodes</td><td>127</td></tr>
+      <tr><td>Edges</td><td>155</td></tr>
       <tr><td>Hyperedges</td><td>0</td></tr>
       <tr><td>Communities</td><td>14</td></tr>
-      <tr><td>Documented Sections</td><td>11</td></tr>
+      <tr><td>Documented Sections</td><td>12</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Edge Confidence</h4>
     <table style="width:100%;font-size:0.85rem;">
-      <tr><td>EXTRACTED</td><td>126</td></tr>
+      <tr><td>EXTRACTED</td><td>155</td></tr>
       <tr><td>INFERRED</td><td>0</td></tr>
       <tr><td>AMBIGUOUS</td><td>0</td></tr>
     </table>
@@ -1611,7 +1830,7 @@ flowchart LR
 
 <div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
   <p>espacio-pwa — Architecture Documentation</p>
-  <p>Generated: 2026-07-30 18:00 UTC · graphify callflow-html</p>
+  <p>Generated: 2026-08-03 21:35 UTC · graphify callflow-html</p>
 </div>
 
 </div><!-- .container -->

@@ -1,7 +1,7 @@
 {
   "package.json": {
-    "mtime": 1785430372.7619052,
-    "ast_hash": "276d605362b81d1e5cb8930a8b1812a4",
+    "mtime": 1785455402.4246254,
+    "ast_hash": "0d1e756eb6eab7673b5b79a3ef9c370a",
     "semantic_hash": ""
   },
   "server/index.js": {
@@ -15,8 +15,8 @@
     "semantic_hash": "dc09c4ef687902e0e0c1127faea9a556"
   },
   "src/App.jsx": {
-    "mtime": 1785430386.9695234,
-    "ast_hash": "0822ef45e788a416779cca4556d3f076",
+    "mtime": 1785456261.2341714,
+    "ast_hash": "07257a301f9224b4722fc6c52fea96ee",
     "semantic_hash": ""
   },
   "src/main.jsx": {
@@ -25,13 +25,13 @@
     "semantic_hash": "62e50ef54352ffdf626adb503bab8c44"
   },
   "vite.config.js": {
-    "mtime": 1784908940.5820246,
-    "ast_hash": "c6709052b485d484a96a4c46248f7e6a",
-    "semantic_hash": "c6709052b485d484a96a4c46248f7e6a"
+    "mtime": 1785455615.4100978,
+    "ast_hash": "2394537ea4ce5a13091c26131180277f",
+    "semantic_hash": ""
   },
   "src/Auth.jsx": {
-    "mtime": 1785430320.630088,
-    "ast_hash": "c1fdba367d1e8ca187cf3550460c40ba",
+    "mtime": 1785454473.2517147,
+    "ast_hash": "6373ff17830872a9ed997ffe506b6a0e",
     "semantic_hash": ""
   },
   "src/supabase.js": {
@@ -55,13 +55,13 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1784907557.7971375,
-    "ast_hash": "37b5ab92a27ea136a7b5054729bc2809",
+    "mtime": 1785443623.8404377,
+    "ast_hash": "aaabb4e57d811425b922354c460abcb7",
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1784855182.0,
-    "ast_hash": "332d7f14b9bd89ce21000c33d4f164ff",
+    "mtime": 1785446125.0154917,
+    "ast_hash": "d130c57070c3b137449663b4c25ad66c",
     "semantic_hash": ""
   },
   "pnpm-workspace.yaml": {
@@ -87,6 +87,16 @@
   "public/icon-512.png": {
     "mtime": 1784855296.0,
     "ast_hash": "669c87f73a1fb75f7ec644ea63f372de",
+    "semantic_hash": ""
+  },
+  "src/sw.js": {
+    "mtime": 1785455000.0802503,
+    "ast_hash": "223b989a257c9a615e2da56b79da9469",
+    "semantic_hash": ""
+  },
+  "dev-dist/registerSW.js": {
+    "mtime": 1785455620.7594266,
+    "ast_hash": "b2999fa3193e9ce6a83fa7d0681b1d1b",
     "semantic_hash": ""
   }
 }
