@@ -222,12 +222,13 @@ export default function App() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: user.id,
+          email: user.email,
           display_name: displayName,
           bio: bioText,
           updated_at: new Date().toISOString()
-        })
-        .eq("id", user.id);
+        });
       if (error) throw error;
       setProfile(prev => prev ? { ...prev, display_name: displayName, bio: bioText } : { display_name: displayName, bio: bioText });
       showToast("Perfil actualizado con éxito");
@@ -264,11 +265,12 @@ export default function App() {
 
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: user.id,
+          email: user.email,
           avatar_url: publicUrl,
           updated_at: new Date().toISOString()
-        })
-        .eq("id", user.id);
+        });
 
       if (updateError) throw updateError;
 
