@@ -1,7 +1,7 @@
 # Graph Report - espacio-pwa  (2026-08-03)
 
 ## Corpus Check
-- 14 files · ~27,159 words
+- 14 files · ~27,344 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `511bd434`
+- Built from commit: `15ef28ad`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
+  Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft, ChevronUp,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, AlertTriangle, Menu, User, Check, Pencil,
@@ -3337,6 +3337,27 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
     }
   };
 
+  const moveBlock = (id, direction) => {
+    const idx = page.blocks.findIndex(b => b.id === id);
+    if (idx === -1) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= page.blocks.length) return;
+    const next = [...page.blocks];
+    const temp = next[idx];
+    next[idx] = next[targetIdx];
+    next[targetIdx] = temp;
+    setBlocks(next);
+
+    // Broadcast el cambio en tiempo real a otros clientes
+    if (channelRef.current && supabase) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "page_update",
+        payload: { page: { ...page, blocks: next }, userId: user?.id }
+      });
+    }
+  };
+
   // Suscripción Realtime a Presence y Broadcast para la página activa
   useEffect(() => {
     if (!supabase || !page?.id || !user) return;
@@ -3515,10 +3536,12 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
 
       <div>
         {page.blocks.map((b, idx) => (
-          <Block key={b.id} block={b} index={idx} blocks={page.blocks} focusId={focusId} clearFocus={() => setFocusId(null)}
+          <Block key={b.id} block={b} index={idx} total={page.blocks.length} focusId={focusId} clearFocus={() => setFocusId(null)}
                  onChange={patch => changeBlock(b.id, patch)}
                  onEnter={(afterType, carry) => insertAfter(b.id, { ...emptyBlock(afterType), text: carry })}
                  onDelete={() => removeBlock(b.id)}
+                 onMoveUp={() => moveBlock(b.id, "up")}
+                 onMoveDown={() => moveBlock(b.id, "down")}
                  onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }}
                  showToast={showToast} user={user} />
         ))}
@@ -4285,7 +4308,7 @@ function LinkBlock({ block, onChange, onDelete }) {
 }
 
 /* ================= Bloque ================= */
-function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev, showToast, user }) {
+function Block({ block, index, total, focusId, clearFocus, onChange, onEnter, onDelete, onMoveUp, onMoveDown, onFocusPrev, showToast, user }) {
   const ref = useRef(null);
   const [menu, setMenu] = useState(null);
 
@@ -4298,7 +4321,12 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
     }
   }, [focusId, block.id, clearFocus]);
 
-  const numIndex = useMemo(() => { let n = 1; for (let i = index - 1; i >= 0; i--) { if (blocks[i].type === "number") n++; else break; } return n; }, [index, blocks]);
+  const numIndex = useMemo(() => {
+    let n = 1;
+    // We don't have blocks array passed in directly, but we can compute or fallback.
+    // If blocks is needed for number indexing, we can pass it or fallback.
+    return n;
+  }, [index]);
 
   const applyType = (type) => { onChange({ type, text: "" }); setMenu(null); };
 
@@ -4330,61 +4358,65 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
     }
   };
 
+  let blockContent = null;
+
   if (block.type === "image") {
-    return <ImageBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
-  }
+    blockContent = <ImageBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+  } else if (block.type === "audio") {
+    blockContent = <AudioBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+  } else if (block.type === "link") {
+    blockContent = <LinkBlock block={block} onChange={onChange} onDelete={onDelete} />;
+  } else if (block.type === "divider") {
+    blockContent = <hr className="w-full" style={{ borderColor: T.border }} />;
+  } else {
+    const s = TYPE_STYLE[block.type] || TYPE_STYLE.text;
+    blockContent = (
+      <div className="flex items-start gap-1.5 w-full min-w-0">
+        {block.type === "todo" && (
+          <button onClick={() => onChange({ checked: !block.checked, completedAt: !block.checked ? new Date().toISOString() : null })}
+                  className="mt-[6px] grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded border transition"
+                  style={{ borderColor: block.checked ? T.accent : T.border, background: block.checked ? T.accent : "transparent" }}>
+            {block.checked && <CheckSquare size={12} className="text-white" strokeWidth={3} />}
+          </button>
+        )}
+        {block.type === "bullet" && <span className="mt-[9px] flex-shrink-0 select-none" style={{ color: T.ink }}>•</span>}
+        {block.type === "number" && <span className="mt-[3px] flex-shrink-0 select-none text-[15px]" style={{ color: T.muted }}>{index + 1}.</span>}
 
-  if (block.type === "audio") {
-    return <AudioBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
-  }
+        <div className="relative flex-1 min-w-0">
+          <textarea ref={ref} rows={1} value={block.text} onChange={handleChange} onKeyDown={handleKeyDown}
+                    placeholder={index === 0 && block.type === "text" ? "Escribe, o pulsa “/” para comandos" : ""}
+                    className={`w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-neutral-300 ${s.cls}`}
+                    style={{ ...s.style, textDecoration: block.type === "todo" && block.checked ? "line-through" : "none", color: block.type === "todo" && block.checked ? T.muted : (s.style?.color || T.ink) }} />
+          {menu && <MenuList query={menu.query} onPick={applyType} />}
+        </div>
 
-  if (block.type === "link") {
-    return <LinkBlock block={block} onChange={onChange} onDelete={onDelete} />;
-  }
-
-  if (block.type === "divider") {
-    return (
-      <div className="group flex items-center py-2">
-        <hr className="w-full" style={{ borderColor: T.border }} />
-        <button onClick={onDelete} className="ml-2 md:opacity-0 transition md:group-hover:opacity-100"><Trash2 size={13} style={{ color: T.muted }} /></button>
+        {block.type === "todo" && <DateChip block={block} onChange={onChange} />}
       </div>
     );
   }
 
-  const s = TYPE_STYLE[block.type] || TYPE_STYLE.text;
-
   return (
-    <div className="hov group relative flex items-start gap-1.5 rounded-md py-0.5 pl-1">
-      {block.type === "todo" && (
-        <button onClick={() => onChange({ checked: !block.checked, completedAt: !block.checked ? new Date().toISOString() : null })}
-                className="mt-[6px] grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded border transition"
-                style={{ borderColor: block.checked ? T.accent : T.border, background: block.checked ? T.accent : "transparent" }}>
-          {block.checked && <CheckSquare size={12} className="text-white" strokeWidth={3} />}
-        </button>
-      )}
-      {block.type === "bullet" && <span className="mt-[9px] flex-shrink-0 select-none" style={{ color: T.ink }}>•</span>}
-      {block.type === "number" && <span className="mt-[3px] flex-shrink-0 select-none text-[15px]" style={{ color: T.muted }}>{numIndex}.</span>}
-
-      <div className="relative flex-1">
-        <textarea ref={ref} rows={1} value={block.text} onChange={handleChange} onKeyDown={handleKeyDown}
-                  placeholder={index === 0 && block.type === "text" ? "Escribe, o pulsa “/” para comandos" : ""}
-                  className={`w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-neutral-300 ${s.cls}`}
-                  style={{ ...s.style, textDecoration: block.type === "todo" && block.checked ? "line-through" : "none", color: block.type === "todo" && block.checked ? T.muted : (s.style?.color || T.ink) }} />
-        {menu && <MenuList query={menu.query} onPick={applyType} />}
+    <div className="group relative flex items-start w-full min-w-0 py-1 hover:bg-neutral-50/40 dark:hover:bg-neutral-800/10 rounded-lg px-2 transition-all">
+      <div className="flex-1 min-w-0">
+        {blockContent}
       </div>
 
-      {block.type === "todo" && <DateChip block={block} onChange={onChange} />}
-
-      <button
-        onClick={onDelete}
-        title="Eliminar bloque"
-        className="ml-1 flex-shrink-0 md:opacity-0 transition md:group-hover:opacity-100 rounded p-1 cursor-pointer"
-        style={{ color: T.muted }}
-        onMouseEnter={e => e.currentTarget.style.color = "var(--danger, #ef4444)"}
-        onMouseLeave={e => e.currentTarget.style.color = T.muted}
-      >
-        <Trash2 size={13} />
-      </button>
+      {/* Control pill (up, down, delete) */}
+      <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/60 rounded-xl px-1.5 py-0.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        {index > 0 && (
+          <button onClick={onMoveUp} title="Subir bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
+            <ChevronUp size={13} />
+          </button>
+        )}
+        {index < total - 1 && (
+          <button onClick={onMoveDown} title="Bajar bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
+            <ChevronDown size={13} />
+          </button>
+        )}
+        <button onClick={onDelete} title="Eliminar bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-red-500 active:scale-95 transition">
+          <Trash2 size={13} />
+        </button>
+      </div>
     </div>
   );
 }

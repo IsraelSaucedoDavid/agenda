@@ -15,8 +15,8 @@
     "semantic_hash": "dc09c4ef687902e0e0c1127faea9a556"
   },
   "src/App.jsx": {
-    "mtime": 1785791604.8578222,
-    "ast_hash": "fbb8e1e76551e5704d76609a65dc68e8",
+    "mtime": 1785792871.503072,
+    "ast_hash": "7c798288e18a1a15688434fc6250b31b",
     "semantic_hash": ""
   },
   "src/main.jsx": {
@@ -102,11 +102,6 @@
   "REGLAS_CORRECCIONES.md": {
     "mtime": 1785523126.7404516,
     "ast_hash": "2e3a9f116a181bd45674f26749637ecb",
-    "semantic_hash": ""
-  },
-  "test_profile_update.js": {
-    "mtime": 1785790073.3142018,
-    "ast_hash": "bed6cd859cf01ef294cc6410dfbd6ea8",
     "semantic_hash": ""
   }
 }

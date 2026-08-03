@@ -4,15 +4,13 @@
   "2": "devDependencies",
   "3": "index.js",
   "4": "package.json",
-  "5": "dependencies",
+  "5": "App",
   "6": "🛡️ Reglas de Buenas Prácticas y Qué NO Hacer al Realizar Correcciones",
   "7": "todayStr",
   "8": "Espacio — tu mini-Notion instalable",
   "9": "vite.config.js",
   "10": "rules/graphify.md",
   "11": "workflows/graphify.md",
-  "12": "test_profile_update.js",
-  "13": "Auth.jsx",
   "14": "sw.js",
   "15": "registerSW.js"
 }
