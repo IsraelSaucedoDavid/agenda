@@ -321,7 +321,7 @@ export default function App() {
         console.warn("RPC delete_user_account no disponible o falló, usando borrado directo:", rpcError);
         await supabase.from("user_workspaces").delete().eq("user_id", user.id);
         if (user.email) {
-          await supabase.from("page_shares").delete().eq("user_email", user.email.toLowerCase());
+          await supabase.from("page_shares").delete().eq("shared_with_email", user.email.toLowerCase());
         }
         await supabase.from("profiles").delete().eq("id", user.id);
       }
