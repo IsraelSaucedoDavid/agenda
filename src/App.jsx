@@ -1153,7 +1153,7 @@ export default function App() {
 
       {/* Alerta flotante de nuevo ticket de soporte para el administrador */}
       {newTicketAlert && (
-        <div className="fixed top-5 right-5 z-[100] flex max-w-sm w-80 flex-col gap-1.5 rounded-xl border p-4 shadow-2xl animate-in slide-in-from-top-5 duration-300 bg-[var(--card, #1e1e1e)] text-left"
+        <div className="fixed top-5 right-5 left-5 sm:left-auto z-[100] flex w-auto sm:w-80 max-w-sm flex-col gap-1.5 rounded-xl border p-4 shadow-2xl animate-in slide-in-from-top-5 duration-300 bg-[var(--card, #1e1e1e)] text-left"
              style={{ borderColor: "var(--accent)" }}>
           <div className="flex items-center gap-2 text-[var(--accent)]">
             <Bell size={15} className="animate-bounce" />
@@ -1785,7 +1785,7 @@ function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub
         <span className="truncate" style={{ fontWeight: active ? 600 : 400 }}>{pg.title || "Sin título"}</span>
       </button>
       {onAddSub && (
-        <div className="flex opacity-0 transition group-hover:opacity-100">
+        <div className="flex md:opacity-0 transition md:group-hover:opacity-100">
           <button onClick={onAddSub} title="Sub-página" className="hov rounded p-1"><Plus size={13} style={{ color: T.muted }} /></button>
           <button onClick={onDelete} title="Borrar" className="hov rounded p-1"><Trash2 size={13} style={{ color: T.muted }} /></button>
         </div>
@@ -1903,7 +1903,7 @@ function CalendarView({ todos, gotoTask, toggleDone, quickAdd }) {
               <div className="mb-1 flex items-center justify-between">
                 <span className="grid h-5 w-5 place-items-center rounded-full text-[10px] md:text-[11px] font-medium" style={{ background: isToday ? T.accent : "transparent", color: isToday ? "#fff" : T.muted }}>{fromStr(ds).getDate()}</span>
                 <button onClick={(e) => { e.stopPropagation(); setAddModal({ date: ds, text: "", time: "", checked: false }); }}
-                        className="opacity-0 md:group-hover:opacity-100 transition"><Plus size={12} style={{ color: T.muted }} /></button>
+                        className="md:opacity-0 md:group-hover:opacity-100 transition"><Plus size={12} style={{ color: T.muted }} /></button>
               </div>
 
               {/* Vista escritorio: Texto de tareas (max 3) */}
@@ -2793,7 +2793,7 @@ function DateChip({ block, onChange }) {
   return (
     <div className="relative flex-shrink-0">
       <button onClick={() => setOpen(o => !o)}
-              className={`mt-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] transition ${has ? "" : "opacity-0 group-hover:opacity-100"}`}
+              className={`mt-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] transition ${has ? "" : "md:opacity-0 md:group-hover:opacity-100"}`}
               style={{ background: has ? T.accentSoft : "transparent", color: has ? T.accent : T.muted }}>
         <CalendarDays size={12} /> {has ? chipLabel(block.date, block.time) : "Fecha"}
       </button>
@@ -2891,7 +2891,7 @@ function ImageBlock({ block, onChange, onDelete, user, showToast }) {
               </div>
             </div>
           )}
-          <button onClick={onDelete} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+          <button onClick={onDelete} className="absolute right-2 top-2 md:opacity-0 md:group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
         </div>
       )}
     </div>
@@ -3064,7 +3064,7 @@ function AudioBlock({ block, onChange, onDelete, user, showToast }) {
               </button>
             </div>
           )}
-          <button onClick={onDelete} className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+          <button onClick={onDelete} className="absolute right-2 top-2 md:opacity-0 md:group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
         </div>
       )}
     </div>
@@ -3228,7 +3228,7 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
     return (
       <div className="group flex items-center py-2">
         <hr className="w-full" style={{ borderColor: T.border }} />
-        <button onClick={onDelete} className="ml-2 opacity-0 transition group-hover:opacity-100"><Trash2 size={13} style={{ color: T.muted }} /></button>
+        <button onClick={onDelete} className="ml-2 md:opacity-0 transition md:group-hover:opacity-100"><Trash2 size={13} style={{ color: T.muted }} /></button>
       </div>
     );
   }
@@ -3260,7 +3260,7 @@ function Block({ block, index, blocks, focusId, clearFocus, onChange, onEnter, o
       <button
         onClick={onDelete}
         title="Eliminar bloque"
-        className="ml-1 flex-shrink-0 opacity-0 transition group-hover:opacity-100 rounded p-1 cursor-pointer"
+        className="ml-1 flex-shrink-0 md:opacity-0 transition md:group-hover:opacity-100 rounded p-1 cursor-pointer"
         style={{ color: T.muted }}
         onMouseEnter={e => e.currentTarget.style.color = "var(--danger, #ef4444)"}
         onMouseLeave={e => e.currentTarget.style.color = T.muted}
@@ -3566,7 +3566,7 @@ function AdminDashboardView({ user, profile, openTicketsCount, setOpenTicketsCou
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b gap-6" style={{ borderColor: T.border }}>
+      <div className="flex border-b gap-4 sm:gap-6 overflow-x-auto" style={{ borderColor: T.border }}>
         <button onClick={() => setAdminTab("tickets")}
                 className="pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition outline-none whitespace-nowrap"
                 style={{ borderColor: adminTab === "tickets" ? T.accent : "transparent", color: adminTab === "tickets" ? T.accent : T.muted }}>
@@ -3609,7 +3609,7 @@ function AdminDashboardView({ user, profile, openTicketsCount, setOpenTicketsCou
               filteredTickets.map(t => (
                 <div key={t.id} className="p-5 border rounded-2xl space-y-3 text-left hover:shadow-sm transition" style={{ borderColor: T.border, background: T.sidebar }}>
                   <div className="flex items-start justify-between gap-4">
-                    <h3 className="text-[14px] font-bold" style={{ color: T.ink }}>{t.subject}</h3>
+                    <h3 className="min-w-0 flex-1 break-words text-[14px] font-bold" style={{ color: T.ink }}>{t.subject}</h3>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <select value={t.status} onChange={e => updateTicketStatus(t.id, e.target.value)} className="text-[10px] font-bold rounded border px-2 py-0.5 outline-none"
                               style={{
