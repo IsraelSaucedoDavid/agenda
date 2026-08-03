@@ -3,7 +3,7 @@ import {
   Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
-  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, Menu,
+  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, Menu, User, Check, Pencil,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
   BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck
 } from "lucide-react";
@@ -189,7 +189,7 @@ export default function App() {
       try {
         let { data, error } = await supabase
           .from("profiles")
-          .select("role, is_blocked")
+          .select("role, is_blocked, display_name, bio, avatar_url")
           .eq("id", user.id)
           .single();
 
@@ -198,7 +198,7 @@ export default function App() {
           await new Promise(resolve => setTimeout(resolve, 850));
           const retry = await supabase
             .from("profiles")
-            .select("role, is_blocked")
+            .select("role, is_blocked, display_name, bio, avatar_url")
             .eq("id", user.id)
             .single();
           data = retry.data;
@@ -216,6 +216,69 @@ export default function App() {
     };
     fetchProfile();
   }, [user]);
+
+  const updateProfileData = async (displayName, bioText) => {
+    if (!user || !supabase) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: displayName,
+          bio: bioText,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, display_name: displayName, bio: bioText } : { display_name: displayName, bio: bioText });
+      showToast("Perfil actualizado con éxito");
+      return true;
+    } catch (err) {
+      console.error("Error al actualizar perfil:", err);
+      showToast("No se pudo actualizar el perfil", "error");
+      return false;
+    }
+  };
+
+  const uploadAvatar = async (file) => {
+    if (!user || !supabase || !file) return;
+    try {
+      if (!file.type.startsWith("image/")) {
+        showToast("El archivo seleccionado debe ser una imagen.", "error");
+        return;
+      }
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : { avatar_url: publicUrl });
+      showToast("Foto de perfil actualizada");
+    } catch (err) {
+      console.error("Error al subir avatar:", err);
+      showToast("No se pudo subir la foto de perfil", "error");
+    }
+  };
 
   const handleLogout = async () => {
     const userId = user?.id;
@@ -1273,6 +1336,25 @@ export default function App() {
                 )}
               </button>
             </div>
+            
+            {/* Widget de Perfil del Usuario */}
+            <div className="mt-2 pt-2 border-t flex items-center gap-2 px-1" style={{ borderColor: T.border }}>
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover border" style={{ borderColor: T.border }} />
+              ) : (
+                <div className="h-8 w-8 rounded-full flex items-center justify-center bg-[var(--accent-soft)] text-[var(--accent)] font-semibold text-xs border" style={{ borderColor: T.border }}>
+                  {(profile?.display_name || user?.email || "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold leading-tight" style={{ color: T.ink }}>
+                  {profile?.display_name || "Sin nombre"}
+                </p>
+                <p className="truncate text-[10px] leading-tight" style={{ color: T.muted }}>
+                  {user?.email}
+                </p>
+              </div>
+            </div>
           </div>
         </aside>
       )}
@@ -1351,7 +1433,8 @@ export default function App() {
       {settingsOpen && (
         <SettingsModal theme={theme} setTheme={setTheme} notifOn={notifOn} enableNotifs={enableNotifs}
                        onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
-                       user={user} onLogout={handleLogout} />
+                       user={user} onLogout={handleLogout} profile={profile}
+                       updateProfileData={updateProfileData} uploadAvatar={uploadAvatar} />
       )}
 
       {/* Panel desplegable de Notificaciones 🔔 */}
@@ -1531,9 +1614,21 @@ export default function App() {
 }
 
 /* ================= Ajustes ================= */
-function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout }) {
+function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar }) {
   const fileRef = useRef(null);
-  const [activeTab, setActiveTab] = useState("general"); // "general", "support", "rules"
+  const [activeTab, setActiveTab] = useState("general"); // "general", "profile", "support", "rules"
+  
+  const [tempName, setTempName] = useState(profile?.display_name || "");
+  const [tempBio, setTempBio] = useState(profile?.bio || "¡Hola! Estoy usando Órbita.");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setTempName(profile.display_name || "");
+      setTempBio(profile.bio || "¡Hola! Estoy usando Órbita.");
+    }
+  }, [profile]);
   
   // Soporte
   const [subject, setSubject] = useState("");
@@ -1596,6 +1691,10 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                   style={{ background: activeTab === "general" ? T.accentSoft : "transparent", color: activeTab === "general" ? T.accent : T.ink }}>
             <Settings size={15} /> General
           </button>
+          <button onClick={() => setActiveTab("profile")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
+                  style={{ background: activeTab === "profile" ? T.accentSoft : "transparent", color: activeTab === "profile" ? T.accent : T.ink }}>
+            <User size={15} /> Perfil
+          </button>
           <button onClick={() => setActiveTab("support")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
                   style={{ background: activeTab === "support" ? T.accentSoft : "transparent", color: activeTab === "support" ? T.accent : T.ink }}>
             <MessageSquare size={15} /> Soporte
@@ -1614,6 +1713,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-serif text-lg font-bold capitalize">
               {activeTab === "general" ? "Ajustes Generales" : 
+               activeTab === "profile" ? "Mi Perfil" : 
                activeTab === "support" ? "Soporte Técnico" : "Términos y Normas"}
             </h2>
             <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
@@ -1663,6 +1763,97 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                   Exporta de vez en cuando para guardar tus notas en un archivo o transferirlas a otro dispositivo.
                 </p>
               </section>
+            </div>
+          )}
+
+          {/* TAB: PROFILE */}
+          {activeTab === "profile" && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* WhatsApp-style avatar section */}
+              <div className="flex flex-col items-center">
+                <div className="relative group">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Avatar" className="h-24 w-24 rounded-full object-cover border-2 shadow-md transition group-hover:brightness-90" style={{ borderColor: T.accent }} />
+                  ) : (
+                    <div className="h-24 w-24 rounded-full flex items-center justify-center text-3xl font-bold text-[var(--accent)] bg-[var(--accent-soft)] border-2 border-dashed shadow-sm" style={{ borderColor: T.accent }}>
+                      {(profile?.display_name || user?.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {/* Camera overlay button */}
+                  <label className="absolute bottom-0 right-0 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer shadow-md bg-[var(--accent)] text-white hover:brightness-105 active:scale-95 transition">
+                    <Camera size={14} />
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadAvatar(file);
+                    }} />
+                  </label>
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: T.muted }}>Haz clic en la cámara para subir una foto de perfil</p>
+              </div>
+
+              {/* Display Name Section */}
+              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: T.border, background: T.sidebar }}>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: T.muted }}>Tu Nombre</p>
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                      <input type="text" value={tempName} onChange={e => setTempName(e.target.value.slice(0, 25))}
+                             placeholder="Tu nombre de pantalla" maxLength={25} autoFocus
+                             className="w-full border-b bg-transparent py-1 text-[13px] outline-none" style={{ borderColor: T.accent, color: T.ink }} />
+                      <span className="absolute right-1 top-1 text-[10px]" style={{ color: tempName.length >= 25 ? "var(--danger)" : T.muted }}>
+                        {tempName.length}/25
+                      </span>
+                    </div>
+                    <button onClick={async () => {
+                      const ok = await updateProfileData(tempName.trim(), tempBio);
+                      if (ok) setIsEditingName(false);
+                    }} className="rounded-lg p-1.5 bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition cursor-pointer"><Check size={14} /></button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-semibold" style={{ color: T.ink }}>{profile?.display_name || "Sin nombre establecido"}</span>
+                    <button onClick={() => { setTempName(profile?.display_name || ""); setIsEditingName(true); }} className="hov rounded p-1 cursor-pointer" style={{ color: T.muted }}><Pencil size={13} /></button>
+                  </div>
+                )}
+                <p className="text-[10px] mt-1.5 leading-relaxed" style={{ color: T.muted }}>
+                  Este no es un nombre de usuario o PIN. Este nombre será visible para tus colaboradores en Órbita.
+                </p>
+              </div>
+
+              {/* Info / Status Section */}
+              <div className="rounded-xl border p-4 shadow-sm" style={{ borderColor: T.border, background: T.sidebar }}>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: T.muted }}>Info. (Estado)</p>
+                {isEditingBio ? (
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={tempBio} onChange={e => setTempBio(e.target.value)}
+                           placeholder="¿Qué estás pensando?" autoFocus
+                           className="flex-1 border-b bg-transparent py-1 text-[13px] outline-none" style={{ borderColor: T.accent, color: T.ink }} />
+                    <button onClick={async () => {
+                      const ok = await updateProfileData(tempName, tempBio.trim());
+                      if (ok) setIsEditingBio(false);
+                    }} className="rounded-lg p-1.5 bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition cursor-pointer"><Check size={14} /></button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px]" style={{ color: T.ink }}>{profile?.bio || "¡Hola! Estoy usando Órbita."}</span>
+                    <button onClick={() => { setTempBio(profile?.bio || ""); setIsEditingBio(true); }} className="hov rounded p-1 cursor-pointer" style={{ color: T.muted }}><Pencil size={13} /></button>
+                  </div>
+                )}
+
+                {/* Pre-defined templates like WhatsApp status */}
+                <div className="mt-3 pt-3 border-t flex flex-wrap gap-1.5" style={{ borderColor: T.border }}>
+                  <p className="w-full text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: T.muted }}>Selecciona un estado rápido</p>
+                  {["Disponible", "En Órbita 🚀", "Ocupado", "En reunión 📝", "Solo emergencias 🚨"].map(status => (
+                    <button key={status} onClick={() => {
+                      setTempBio(status);
+                      updateProfileData(profile?.display_name || "", status);
+                    }} className="text-[10px] px-2.5 py-1 rounded-full border hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition cursor-pointer"
+                       style={{ borderColor: T.border, color: T.muted }}>
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
