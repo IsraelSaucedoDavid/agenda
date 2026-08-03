@@ -1141,7 +1141,7 @@ export default function App() {
 
   const NavBtn = ({ id, icon: Icon, label }) => (
     <button onClick={() => { setView(id); if (window.innerWidth < 768) setSidebarOpen(false); }}
-            className="flex flex-1 flex-col items-center gap-1 rounded-md py-1.5 text-[11px] font-medium transition"
+            className="flex flex-1 flex-col items-center gap-1 rounded-md py-2 text-[12px] md:py-1.5 md:text-[11px] font-medium transition"
             style={{ background: view === id ? T.accentSoft : "transparent", color: view === id ? T.accent : T.muted }}>
       <Icon size={16} /> {label}
     </button>
@@ -1168,7 +1168,7 @@ export default function App() {
       )}
 
       {sidebarOpen && (
-        <aside className="fixed z-30 flex h-full w-64 flex-shrink-0 flex-col border-r md:static" style={{ background: T.sidebar, borderColor: T.border }}>
+        <aside className="fixed inset-y-0 left-0 z-30 flex h-full w-[82vw] max-w-72 flex-shrink-0 flex-col border-r md:static md:inset-auto md:w-64 md:max-w-none" style={{ background: T.sidebar, borderColor: T.border }}>
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <div className="flex items-center gap-2">
               <span className="grid h-6 w-6 place-items-center rounded-md text-xs font-bold text-white" style={{ background: T.accent }}>Ó</span>
