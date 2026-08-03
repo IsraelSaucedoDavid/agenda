@@ -239,14 +239,14 @@ export default function App() {
     }
   };
 
-  const uploadAvatar = async (file) => {
-    if (!user || !supabase || !file) return;
+  const uploadAvatar = async (fileOrBlob) => {
+    if (!user || !supabase || !fileOrBlob) return;
     try {
-      if (!file.type.startsWith("image/")) {
+      if (!fileOrBlob.type.startsWith("image/")) {
         showToast("El archivo seleccionado debe ser una imagen.", "error");
         return;
       }
-      const fileExt = file.name.split(".").pop();
+      const fileExt = fileOrBlob.name ? fileOrBlob.name.split(".").pop() : fileOrBlob.type.split("/").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
@@ -1622,6 +1622,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
   const [tempBio, setTempBio] = useState(profile?.bio || "¡Hola! Estoy usando Órbita.");
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
+  const [editingImageSrc, setEditingImageSrc] = useState(null);
 
   useEffect(() => {
     if (profile) {
@@ -1784,7 +1785,12 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                     <Camera size={14} />
                     <input type="file" accept="image/*" className="hidden" onChange={e => {
                       const file = e.target.files?.[0];
-                      if (file) uploadAvatar(file);
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => setEditingImageSrc(reader.result);
+                        reader.readAsDataURL(file);
+                        e.target.value = "";
+                      }
                     }} />
                   </label>
                 </div>
@@ -1916,6 +1922,227 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
               </div>
             </div>
           )}
+        </div>
+      </div>
+      {editingImageSrc && (
+        <ImageEditorModal 
+          imageSrc={editingImageSrc} 
+          onClose={() => setEditingImageSrc(null)}
+          onSave={async (blob) => {
+            await uploadAvatar(blob);
+            setEditingImageSrc(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ================= Editor de Foto de Perfil ================= */
+function ImageEditorModal({ imageSrc, onClose, onSave }) {
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [selectedFilter, setSelectedFilter] = useState("none");
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef(null);
+  const imgRef = useRef(null);
+
+  const filters = [
+    { id: "none", name: "Original" },
+    { id: "grayscale", name: "B&N" },
+    { id: "sepia", name: "Sepia" },
+    { id: "warm", name: "Cálido" },
+    { id: "cool", name: "Frío" },
+    { id: "vivid", name: "Vívido" }
+  ];
+
+  const handleImageLoad = (e) => {
+    const { naturalWidth, naturalHeight } = e.target;
+    setDimensions({ width: naturalWidth, height: naturalHeight });
+  };
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    setIsDragging(true);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX - offset.x, y: touch.clientY - offset.y });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setOffset({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    });
+  };
+
+  const handleSave = () => {
+    const canvas = document.createElement("canvas");
+    const size = 300; // tamaño final del avatar
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx || !imgRef.current) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, size, size);
+
+    if (selectedFilter === "grayscale") {
+      ctx.filter = "grayscale(100%)";
+    } else if (selectedFilter === "sepia") {
+      ctx.filter = "sepia(100%)";
+    } else if (selectedFilter === "warm") {
+      ctx.filter = "saturate(150%) sepia(20%)";
+    } else if (selectedFilter === "cool") {
+      ctx.filter = "hue-rotate(15deg) saturate(125%) brightness(105%)";
+    } else if (selectedFilter === "vivid") {
+      ctx.filter = "contrast(125%) brightness(105%) saturate(150%)";
+    } else {
+      ctx.filter = "none";
+    }
+
+    const naturalWidth = dimensions.width || imgRef.current.naturalWidth || 300;
+    const naturalHeight = dimensions.height || imgRef.current.naturalHeight || 300;
+
+    // Viewport de corte en DOM: 192px de diámetro
+    const viewportSize = 192;
+    const scaleFactor = 300 / viewportSize;
+    const baseScale = viewportSize / Math.min(naturalWidth, naturalHeight);
+
+    const drawWidth = naturalWidth * baseScale * zoom * scaleFactor;
+    const drawHeight = naturalHeight * baseScale * zoom * scaleFactor;
+    const drawX = (150 - (drawWidth / 2)) + (offset.x * scaleFactor);
+    const drawY = (150 - (drawHeight / 2)) + (offset.y * scaleFactor);
+
+    ctx.drawImage(imgRef.current, drawX, drawY, drawWidth, drawHeight);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        onSave(blob);
+      }
+    }, "image/jpeg", 0.9);
+  };
+
+  const getFilterStyle = (filterId) => {
+    switch (filterId) {
+      case "grayscale": return "grayscale(100%)";
+      case "sepia": return "sepia(100%)";
+      case "warm": return "saturate(150%) sepia(20%)";
+      case "cool": return "hue-rotate(15deg) saturate(125%) brightness(105%)";
+      case "vivid": return "contrast(125%) brightness(105%) saturate(150%)";
+      default: return "none";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/85 p-4 animate-in fade-in duration-200" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl p-5 border shadow-2xl flex flex-col items-center bg-neutral-900 border-neutral-800 text-white" onClick={e => e.stopPropagation()}>
+        <h3 className="font-serif text-lg font-bold mb-4 self-start">Editar foto de perfil</h3>
+        
+        <div 
+          ref={containerRef}
+          className="relative w-64 h-64 overflow-hidden bg-black rounded-lg cursor-move border border-neutral-700 select-none flex items-center justify-center"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleMouseUp}
+        >
+          <img 
+            ref={imgRef}
+            src={imageSrc} 
+            alt="Original" 
+            draggable="false"
+            onLoad={handleImageLoad}
+            className="max-w-none origin-center pointer-events-none transition-transform duration-75"
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+              filter: getFilterStyle(selectedFilter),
+              height: dimensions.width > dimensions.height ? "192px" : "auto",
+              width: dimensions.width <= dimensions.height ? "192px" : "auto",
+            }}
+          />
+
+          <div className="absolute inset-0 pointer-events-none border-[32px] border-black/60 rounded-lg flex items-center justify-center">
+            <div className="w-[192px] h-[192px] rounded-full border border-dashed border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
+          </div>
+        </div>
+
+        <div className="w-full mt-4 flex items-center gap-3 px-2">
+          <span className="text-xs text-neutral-400">Zoom</span>
+          <input 
+            type="range" 
+            min="1" 
+            max="3" 
+            step="0.05" 
+            value={zoom} 
+            onChange={(e) => setZoom(parseFloat(e.target.value))}
+            className="flex-1 accent-[var(--accent)] h-1 rounded-lg bg-neutral-700 cursor-pointer"
+          />
+        </div>
+
+        <div className="w-full mt-5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400 mb-2 px-1">Filtros</p>
+          <div className="flex gap-2 overflow-x-auto pb-2 w-full scrollbar-thin">
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => setSelectedFilter(filter.id)}
+                className={`flex-shrink-0 flex flex-col items-center rounded-lg p-1.5 border transition cursor-pointer ${
+                  selectedFilter === filter.id ? "border-[var(--accent)] bg-neutral-800" : "border-neutral-800 bg-neutral-950"
+                }`}
+              >
+                <div className="w-12 h-12 rounded bg-neutral-800 overflow-hidden mb-1 flex items-center justify-center">
+                  <img 
+                    src={imageSrc} 
+                    alt={filter.name} 
+                    className="w-full h-full object-cover" 
+                    style={{ filter: getFilterStyle(filter.id) }} 
+                  />
+                </div>
+                <span className="text-[10px] text-neutral-300">{filter.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="w-full mt-6 flex justify-end gap-3 border-t border-neutral-800 pt-4">
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 rounded-lg text-xs font-semibold border border-neutral-700 text-neutral-300 hover:bg-neutral-800 transition cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button 
+            onClick={handleSave} 
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-white shadow transition hover:brightness-105 active:scale-95 cursor-pointer"
+            style={{ background: "var(--accent)" }}
+          >
+            Guardar
+          </button>
         </div>
       </div>
     </div>
