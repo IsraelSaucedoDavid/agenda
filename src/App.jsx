@@ -3,7 +3,7 @@ import {
   Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
-  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle,
+  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, Menu,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
   BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck
 } from "lucide-react";
@@ -1276,8 +1276,37 @@ export default function App() {
             }} className="hov rounded p-0.5"><X size={12} /></button>
           </div>
         )}
+
+        {/* Cabecera Móvil Fija */}
+        <header className="sticky top-0 z-20 flex h-14 flex-shrink-0 items-center justify-between border-b px-4 bg-header md:hidden"
+                style={{ borderColor: T.border }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="hov rounded p-1.5 cursor-pointer" style={{ color: T.muted }}>
+              <Menu size={20} />
+            </button>
+            <span className="font-serif text-[15px] font-bold tracking-tight">
+              {view === "calendar" ? "Calendario" :
+               view === "agenda" ? "Agenda" :
+               view === "analytics" ? "Analíticas" :
+               view === "trash" ? "Papelera" :
+               view === "admin" ? "Panel Admin" :
+               page ? page.title || "Sin título" : "Órbita"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setNotifPanelOpen(o => !o)} className="relative hov rounded p-1.5 cursor-pointer" style={{ color: T.muted }}>
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[var(--danger,#ef4444)] px-1 text-[8px] font-bold text-white animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </header>
+
         {!sidebarOpen && (
-          <button onClick={() => setSidebarOpen(true)} className="hov absolute left-3 top-3 z-10 rounded p-1.5"><PanelLeft size={17} style={{ color: T.muted }} /></button>
+          <button onClick={() => setSidebarOpen(true)} className="hov absolute left-3 top-3 z-10 rounded p-1.5 hidden md:block"><PanelLeft size={17} style={{ color: T.muted }} /></button>
         )}
 
         {view === "calendar" ? (
@@ -3881,14 +3910,17 @@ function AnalyticsView({ todos }) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dayStr = toStr(d);
-      const label = i === 0 ? "Hoy" : `${WEEK_S[(d.getDay() + 6) % 7]} ${d.getDate()}`;
+      
+      const dayLabel = i === 0 ? "Hoy" : WEEK_S[(d.getDay() + 6) % 7];
+      const dateLabel = i === 0 ? "" : String(d.getDate());
+      const label = i === 0 ? "Hoy" : `${dayLabel} ${dateLabel}`;
       
       const count = completedTodos.filter(t => {
         const cDate = t.completedAt ? toStr(new Date(t.completedAt)) : (t.date || "");
         return cDate === dayStr;
       }).length;
 
-      days.push({ dayStr, label, count, isToday: i === 0 });
+      days.push({ dayStr, label, dayLabel, dateLabel, count, isToday: i === 0 });
     }
     return days;
   }, [completedTodos]);
@@ -3927,18 +3959,18 @@ function AnalyticsView({ todos }) {
   }, [todos]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 pb-24 pt-14 sm:px-8 animate-in fade-in duration-200">
+    <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-6 md:pt-14 sm:px-8 animate-in fade-in duration-200">
       <div className="mb-6">
-        <h1 className="font-serif text-2xl font-bold flex items-center gap-2">
+        <h1 className="font-serif text-xl md:text-2xl font-bold flex items-center gap-2">
           <BarChart3 size={24} style={{ color: T.accent }} /> Productividad y Analíticas
         </h1>
-        <p className="text-[13px] mt-0.5" style={{ color: T.muted }}>
+        <p className="text-[12px] md:text-[13px] mt-0.5" style={{ color: T.muted }}>
           Rastrea tu rendimiento, mantén tu racha de enfoque y alcanza nuevos niveles de organización.
         </p>
       </div>
 
       {/* Grid de Métricas Principales */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="rounded-2xl border p-4 shadow-sm transition hover:shadow-md" style={{ borderColor: T.border, background: T.sidebar }}>
           <div className="flex items-center justify-between text-amber-500 mb-1">
             <span className="text-xs font-semibold uppercase tracking-wider">Racha Actual</span>
@@ -3987,7 +4019,7 @@ function AnalyticsView({ todos }) {
             <Zap size={20} />
           </div>
         </div>
-        <div className="w-full bg-[var(--card)] rounded-full h-3 overflow-hidden border" style={{ borderColor: T.border }}>
+        <div className="w-full bg-neutral-200 dark:bg-neutral-800 rounded-full h-3 overflow-hidden border" style={{ borderColor: T.border }}>
           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${levelInfo.progress}%`, background: T.accent }} />
         </div>
         <div className="flex justify-between items-center mt-2 text-[11px]" style={{ color: T.muted }}>
@@ -4014,12 +4046,13 @@ function AnalyticsView({ todos }) {
                   </span>
                   <div className="w-full max-w-[28px] rounded-t-md transition-all duration-300 group-hover:brightness-110"
                        style={{
-                         height: `${Math.max(8, heightPct)}%`,
+                         height: d.count > 0 ? `${Math.max(12, heightPct)}%` : "4px",
                          background: d.count > 0 ? (d.isToday ? T.accent : "var(--accent-soft)") : "var(--border)",
                          borderTop: d.count > 0 ? `2px solid ${T.accent}` : "none"
                        }} />
-                  <span className="text-[10px] truncate max-w-full font-medium" style={{ color: d.isToday ? T.accent : T.muted }}>
-                    {d.label}
+                  <span className="text-[10px] flex flex-col items-center leading-tight font-medium" style={{ color: d.isToday ? T.accent : T.muted }}>
+                    <span>{d.dayLabel}</span>
+                    {d.dateLabel && <span className="text-[9px] opacity-75">{d.dateLabel}</span>}
                   </span>
                 </div>
               );

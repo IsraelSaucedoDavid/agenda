@@ -49,3 +49,15 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+.bg-header {
+  background-color: rgba(250, 250, 247, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dark .bg-header {
+  background-color: rgba(26, 25, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
