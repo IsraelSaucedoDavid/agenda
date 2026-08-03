@@ -287,6 +287,29 @@ export default function App() {
     }
   };
 
+  const removeAvatar = async () => {
+    if (!user || !supabase) return;
+    try {
+      const payload = {
+        id: user.id,
+        email: user.email,
+        avatar_url: null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from("profiles")
+        .upsert(payload);
+
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : { avatar_url: null });
+      showToast("Foto de perfil eliminada");
+    } catch (err) {
+      console.error("Error al eliminar avatar:", err);
+      showToast("No se pudo eliminar la foto de perfil", "error");
+    }
+  };
+
   const handleLogout = async () => {
     const userId = user?.id;
     await supabase.auth.signOut();
@@ -1441,7 +1464,8 @@ export default function App() {
         <SettingsModal theme={theme} setTheme={setTheme} notifOn={notifOn} enableNotifs={enableNotifs}
                        onExport={exportData} onImport={importData} onClose={() => setSettingsOpen(false)}
                        user={user} onLogout={handleLogout} profile={profile}
-                       updateProfileData={updateProfileData} uploadAvatar={uploadAvatar} />
+                       updateProfileData={updateProfileData} uploadAvatar={uploadAvatar}
+                       removeAvatar={removeAvatar} />
       )}
 
       {/* Panel desplegable de Notificaciones 🔔 */}
@@ -1621,7 +1645,7 @@ export default function App() {
 }
 
 /* ================= Ajustes ================= */
-function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar }) {
+function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar }) {
   const fileRef = useRef(null);
   const [activeTab, setActiveTab] = useState("general"); // "general", "profile", "support", "rules"
   
@@ -1801,7 +1825,13 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                     }} />
                   </label>
                 </div>
-                <p className="text-[10px] mt-2" style={{ color: T.muted }}>Haz clic en la cámara para subir una foto de perfil</p>
+                {profile?.avatar_url ? (
+                  <button onClick={removeAvatar} className="mt-2 flex items-center gap-1 text-[11px] font-medium text-[var(--danger,#ef4444)] hover:underline cursor-pointer">
+                    <Trash2 size={12} /> Eliminar foto de perfil
+                  </button>
+                ) : (
+                  <p className="text-[10px] mt-2" style={{ color: T.muted }}>Haz clic en la cámara para subir una foto de perfil</p>
+                )}
               </div>
 
               {/* Display Name Section */}
