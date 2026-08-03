@@ -3,7 +3,7 @@ import {
   Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
-  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, Menu, User, Check, Pencil,
+  FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, AlertTriangle, Menu, User, Check, Pencil,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
   BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck
 } from "lucide-react";
@@ -1682,6 +1682,86 @@ export default function App() {
   );
 }
 
+/* ================= Modal de Términos para Borrado de Cuenta ================= */
+function DeleteAccountTermsModal({ onClose, onProceed }) {
+  const [check1, setCheck1] = useState(false);
+  const [check2, setCheck2] = useState(false);
+  const [check3, setCheck3] = useState(false);
+
+  const canProceed = check1 && check2 && check3;
+
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-[#121212] text-white p-6 shadow-2xl space-y-5">
+        
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-red-400">Términos de Eliminación</h3>
+              <p className="text-[11px] text-neutral-400">Debes aceptar los 3 puntos para continuar</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Warning Notice */}
+        <div className="rounded-xl border border-red-500/20 bg-red-950/30 p-3.5 text-[11px] text-red-200/90 leading-relaxed">
+          Estás a punto de iniciar el proceso para eliminar permanentemente tu cuenta de <strong>Órbita</strong>. Por favor lee y marca las casillas de conformidad:
+        </div>
+
+        {/* Terms Checklist */}
+        <div className="space-y-2.5">
+          <label className="flex items-start gap-3 p-3 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:bg-neutral-800/80 transition cursor-pointer select-none">
+            <input type="checkbox" checked={check1} onChange={e => setCheck1(e.target.checked)} className="mt-0.5 accent-red-500 h-4 w-4 rounded cursor-pointer" />
+            <span className="text-[11px] text-neutral-300 leading-snug">
+              Comprendo que se eliminarán <strong>permanentemente todas mis páginas, notas y configuraciones</strong>.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 p-3 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:bg-neutral-800/80 transition cursor-pointer select-none">
+            <input type="checkbox" checked={check2} onChange={e => setCheck2(e.target.checked)} className="mt-0.5 accent-red-500 h-4 w-4 rounded cursor-pointer" />
+            <span className="text-[11px] text-neutral-300 leading-snug">
+              Acepto que mis notas compartidas con otros colaboradores <strong>quedarán canceladas e inaccesibles</strong>.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 p-3 rounded-xl border border-neutral-800 bg-neutral-900/80 hover:bg-neutral-800/80 transition cursor-pointer select-none">
+            <input type="checkbox" checked={check3} onChange={e => setCheck3(e.target.checked)} className="mt-0.5 accent-red-500 h-4 w-4 rounded cursor-pointer" />
+            <span className="text-[11px] text-neutral-300 leading-snug">
+              Reconozco que esta acción es <strong>IRREVERSIBLE</strong> y no podré recuperar mis datos.
+            </span>
+          </label>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="pt-3 flex items-center justify-end gap-3 border-t border-neutral-800">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer">
+            Cancelar
+          </button>
+          <button 
+            disabled={!canProceed}
+            onClick={onProceed}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition shadow-md ${
+              canProceed 
+                ? "bg-red-600 hover:bg-red-500 active:scale-95 cursor-pointer" 
+                : "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-40"
+            }`}
+          >
+            <Trash2 size={14} /> Continuar a Confirmación
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 /* ================= Ajustes ================= */
 function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar, deleteAccount, setConfirmDialog }) {
   const fileRef = useRef(null);
@@ -1692,6 +1772,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [editingImageSrc, setEditingImageSrc] = useState(null);
+  const [showDeleteTermsModal, setShowDeleteTermsModal] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -1942,18 +2023,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                 <p className="text-[11px] mb-3 leading-relaxed" style={{ color: T.muted }}>
                   Eliminar tu cuenta borrará permanentemente todas tus páginas, configuraciones, notas y foto de perfil. Esta acción no se puede deshacer.
                 </p>
-                <button onClick={() => {
-                  if (setConfirmDialog) {
-                    setConfirmDialog({
-                      title: "¿Eliminar tu cuenta permanentemente?",
-                      message: "Esta acción es IRREVERSIBLE. Se borrarán todas tus páginas, datos, notas y foto de perfil para siempre. ¿Estás seguro?",
-                      onConfirm: () => {
-                        onClose();
-                        deleteAccount();
-                      }
-                    });
-                  }
-                }} className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-white bg-[var(--danger,#ef4444)] hover:brightness-105 active:scale-[0.98] transition cursor-pointer shadow-sm">
+                <button onClick={() => setShowDeleteTermsModal(true)} className="w-full flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold text-white bg-[var(--danger,#ef4444)] hover:brightness-105 active:scale-[0.98] transition cursor-pointer shadow-sm">
                   <Trash2 size={14} /> Eliminar mi cuenta
                 </button>
               </div>
@@ -2028,6 +2098,25 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
           onSave={async (blob) => {
             await uploadAvatar(blob);
             setEditingImageSrc(null);
+          }}
+        />
+      )}
+
+      {showDeleteTermsModal && (
+        <DeleteAccountTermsModal
+          onClose={() => setShowDeleteTermsModal(false)}
+          onProceed={() => {
+            setShowDeleteTermsModal(false);
+            if (setConfirmDialog) {
+              setConfirmDialog({
+                title: "¿Eliminar tu cuenta definitivamente?",
+                message: "Confirmación final: Tu cuenta y todos tus datos serán eliminados permanentemente ahora mismo. ¿Deseas proceder?",
+                onConfirm: () => {
+                  onClose();
+                  deleteAccount();
+                }
+              });
+            }
           }}
         />
       )}
