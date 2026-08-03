@@ -242,12 +242,7 @@ export default function App() {
 
       if (error) throw error;
 
-      console.log("DEBUG: serverData fetched from Supabase:", {
-        pagesKeys: Object.keys(serverData?.pages || {}),
-        pagesTitles: Object.values(serverData?.pages || {}).map(p => p.title),
-        order: serverData?.order,
-        updated_at: serverData?.updated_at
-      });
+
 
       // Caso 1: El servidor no tiene datos guardados todavía
       if (!serverData) {
@@ -465,7 +460,7 @@ export default function App() {
         .select("*")
         .eq("shared_with_email", userEmail);
 
-      console.log("DEBUG: fetchSharedPages querying for:", userEmail, "Result shares:", shares, "Error:", error);
+
 
       if (!error && shares) {
         const activeShares = [];
@@ -487,16 +482,7 @@ export default function App() {
               const ownerPage = exists ? wsData.pages[sp.page_id] : null;
               const isAccepted = sp.status === "accepted" || !sp.status || acceptedShares.includes(sp.id);
 
-              console.log(`DEBUG: Owner workspace query for ${sp.owner_id} (Page: ${sp.page_id}):`, { 
-                existsInOwnerWorkspace: exists,
-                ownerPageTitle: ownerPage?.title,
-                ownerPageDeletedAt: ownerPage?.deletedAt,
-                shareStatus: sp.status,
-                isAccepted: isAccepted,
-                ownerAllPageKeys: Object.keys(wsData?.pages || {}),
-                ownerAllPageTitles: Object.values(wsData?.pages || {}).map(p => p.title),
-                wsError 
-              });
+
 
               if (exists && ownerPage) {
                 if (ownerPage.deletedAt) {
