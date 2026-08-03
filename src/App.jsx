@@ -220,15 +220,24 @@ export default function App() {
   const updateProfileData = async (displayName, bioText) => {
     if (!user || !supabase) return;
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          email: user.email,
-          display_name: displayName,
-          bio: bioText,
-          updated_at: new Date().toISOString()
-        });
+      const isNew = !profile;
+      const payload = {
+        id: user.id,
+        email: user.email,
+        display_name: displayName,
+        bio: bioText,
+        updated_at: new Date().toISOString()
+      };
+
+      let error;
+      if (isNew) {
+        const res = await supabase.from("profiles").insert(payload);
+        error = res.error;
+      } else {
+        const res = await supabase.from("profiles").update(payload).eq("id", user.id);
+        error = res.error;
+      }
+
       if (error) throw error;
       setProfile(prev => prev ? { ...prev, display_name: displayName, bio: bioText } : { display_name: displayName, bio: bioText });
       showToast("Perfil actualizado con éxito");
@@ -263,14 +272,22 @@ export default function App() {
 
       const publicUrl = data.publicUrl;
 
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          email: user.email,
-          avatar_url: publicUrl,
-          updated_at: new Date().toISOString()
-        });
+      const isNew = !profile;
+      const payload = {
+        id: user.id,
+        email: user.email,
+        avatar_url: publicUrl,
+        updated_at: new Date().toISOString()
+      };
+
+      let updateError;
+      if (isNew) {
+        const res = await supabase.from("profiles").insert(payload);
+        updateError = res.error;
+      } else {
+        const res = await supabase.from("profiles").update(payload).eq("id", user.id);
+        updateError = res.error;
+      }
 
       if (updateError) throw updateError;
 
