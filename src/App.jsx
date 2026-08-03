@@ -94,6 +94,7 @@ export default function App() {
   const [expanded, setExpanded] = useState({});
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [loading, setLoading] = useState(true);
+  const isDirtyRef = useRef(false);
   const [theme, setTheme] = useState("light");
   const [notifOn, setNotifOn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -320,7 +321,7 @@ export default function App() {
         const localPagesCount = Object.keys(localData.pages || {}).length;
         const serverPagesCount = Object.keys(serverData.pages || {}).length;
         
-        if (localPagesCount === 0 && serverPagesCount > 0) {
+        if (localPagesCount === 0 && serverPagesCount > 0 && !isDirtyRef.current) {
           console.warn("Sincronización: Se previno sobrescribir el servidor con un cliente vacío.");
           setPages(serverData.pages);
           setOrder(serverData.order || []);
@@ -756,8 +757,12 @@ export default function App() {
 
   const page = pages[currentId];
 
-  const updatePage = useCallback((id, patch) => setPages(p => ({ ...p, [id]: { ...p[id], ...patch } })), []);
+  const updatePage = useCallback((id, patch) => {
+    isDirtyRef.current = true;
+    setPages(p => ({ ...p, [id]: { ...p[id], ...patch } }));
+  }, []);
   const updateBlockInPage = useCallback((pageId, blockId, patch) => {
+    isDirtyRef.current = true;
     setPages(p => {
       const pg = p[pageId]; if (!pg) return p;
       return { ...p, [pageId]: { ...pg, blocks: pg.blocks.map(b => (b.id === blockId ? { ...b, ...patch } : b)) } };
@@ -768,6 +773,7 @@ export default function App() {
   }, [updateBlockInPage]);
 
   const addPage = (parentId = null) => {
+    isDirtyRef.current = true;
     const np = newPage(parentId);
     setPages(p => ({ ...p, [np.id]: np }));
     setOrder(o => [...o, np.id]);
@@ -778,6 +784,7 @@ export default function App() {
 
   // --- Soft delete: marca con deletedAt en lugar de borrar físicamente ---
   const softDeletePage = async (id) => {
+    isDirtyRef.current = true;
     const now = new Date().toISOString();
     const toTrash = new Set([id]);
 
@@ -843,6 +850,7 @@ export default function App() {
 
   // --- Restaurar página de la papelera ---
   const restorePage = (id) => {
+    isDirtyRef.current = true;
     setPages(p => {
       const next = { ...p };
       // Restaura la página y todos sus hijos
@@ -863,6 +871,7 @@ export default function App() {
 
   // --- Eliminar permanentemente una página y sus hijos ---
   const permanentDelete = async (id) => {
+    isDirtyRef.current = true;
     const toRemove = new Set([id]);
     let changed = true;
     while (changed) {
@@ -888,6 +897,7 @@ export default function App() {
 
   // --- Vaciar papelera: elimina permanentemente todas las páginas eliminadas ---
   const emptyTrash = () => {
+    isDirtyRef.current = true;
     setPages(p => {
       const next = { ...p };
       Object.keys(next).forEach(id => { if (next[id]?.deletedAt) delete next[id]; });
@@ -898,6 +908,7 @@ export default function App() {
 
   const quickAdd = (text, date, time, checked = false) => {
     if (!text || !text.trim()) return;
+    isDirtyRef.current = true;
     const block = {
       ...emptyBlock("todo"),
       text: text.trim(),
