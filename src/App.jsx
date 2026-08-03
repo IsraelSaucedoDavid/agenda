@@ -191,7 +191,7 @@ export default function App() {
           .from("profiles")
           .select("role, is_blocked, display_name, bio, avatar_url")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         // Reintento con retraso si hay latencia en el trigger
         if (error && error.code === "PGRST116") {
@@ -200,7 +200,7 @@ export default function App() {
             .from("profiles")
             .select("role, is_blocked, display_name, bio, avatar_url")
             .eq("id", user.id)
-            .single();
+            .maybeSingle();
           data = retry.data;
           error = retry.error;
         }
