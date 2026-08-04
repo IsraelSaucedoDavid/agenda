@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
-  Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft, ChevronUp,
+  Plus, Search, Trash2, ChevronRight, ChevronDown, ChevronLeft,
   Type, Heading1, Heading2, Heading3, CheckSquare, List, ListOrdered,
   Quote, Minus, MessageSquare, PanelLeftClose, PanelLeft, CornerDownRight,
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, AlertTriangle, Menu, User, Check, Pencil,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
   BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck,
-  FolderPlus, Folder, FolderOpen, MoreHorizontal
+  FolderPlus, Folder, FolderOpen, MoreHorizontal, GripVertical
 } from "lucide-react";
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor, closestCenter, pointerWithin, useSensor, useSensors, useDraggable, useDroppable } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
 import OrbitaMark from "./brand";
@@ -967,11 +970,11 @@ export default function App() {
     "#3b82f6", "#8b5cf6", "#ef4444", "#a16207", "#6b7280", "#10b981"
   ];
 
-  const addFolder = (name = "", color = null) => {
+  const addFolder = (name = "", color = null, parentId = null) => {
     isDirtyRef.current = true;
     const fid = uid();
     const randomColor = FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
-    const folder = { id: fid, name: name.trim() || "Nueva carpeta", color: color || randomColor, pageIds: [] };
+    const folder = { id: fid, name: name.trim() || "Nueva carpeta", color: color || randomColor, pageIds: [], parentId: parentId || null };
     setFolders(f => ({ ...f, [fid]: folder }));
     setFolderOrder(fo => [...fo, fid]);
     return fid;
@@ -984,8 +987,30 @@ export default function App() {
 
   const deleteFolder = (fid) => {
     isDirtyRef.current = true;
-    setFolders(f => { const next = { ...f }; delete next[fid]; return next; });
-    setFolderOrder(fo => fo.filter(id => id !== fid));
+    const toDelete = new Set([fid]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [id, folder] of Object.entries(folders)) {
+        if (folder.parentId && toDelete.has(folder.parentId) && !toDelete.has(id)) { toDelete.add(id); changed = true; }
+      }
+    }
+    const parentId = folders[fid]?.parentId || null;
+    const heirPageIds = new Set();
+    if (parentId) {
+      for (const id of toDelete) {
+        for (const pid of (folders[id]?.pageIds || [])) heirPageIds.add(pid);
+      }
+    }
+    setFolders(f => {
+      const next = { ...f };
+      for (const id of toDelete) delete next[id];
+      if (parentId && next[parentId]) {
+        next[parentId] = { ...next[parentId], pageIds: Array.from(new Set([...next[parentId].pageIds, ...heirPageIds])) };
+      }
+      return next;
+    });
+    setFolderOrder(fo => fo.filter(id => !toDelete.has(id)));
   };
 
   const addPageToFolder = (pageId, fid) => {
@@ -1020,6 +1045,197 @@ export default function App() {
       if (folder.pageIds.includes(pageId)) return fid;
     }
     return null;
+  };
+
+  /* --- drag & drop en la barra lateral (páginas y carpetas) --- */
+  const [sidebarDragActive, setSidebarDragActive] = useState(null); // { type: "page"|"folder", id }
+  const [sidebarHover, setSidebarHover] = useState(null);           // { id, mode: "highlight"|"insert" }
+  const sidebarSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 8 } })
+  );
+
+  const movePageIntoFolder = (pageId, fid) => {
+    isDirtyRef.current = true;
+    setFolders(f => {
+      const next = {};
+      for (const [id, folder] of Object.entries(f)) {
+        next[id] = { ...folder, pageIds: folder.pageIds.filter(pid => pid !== pageId) };
+      }
+      if (next[fid]) next[fid] = { ...next[fid], pageIds: [...(next[fid].pageIds || []), pageId] };
+      return next;
+    });
+  };
+
+  const movePageIntoFolderAt = (pageId, fid, atPageId) => {
+    isDirtyRef.current = true;
+    setFolders(f => {
+      const next = {};
+      for (const [id, folder] of Object.entries(f)) {
+        next[id] = { ...folder, pageIds: folder.pageIds.filter(pid => pid !== pageId) };
+      }
+      const target = next[fid];
+      if (!target) return next;
+      const ids = [...target.pageIds];
+      const idx = ids.indexOf(atPageId);
+      if (idx === -1) ids.push(pageId);
+      else ids.splice(idx, 0, pageId);
+      next[fid] = { ...target, pageIds: ids };
+      return next;
+    });
+  };
+
+  const movePageToRoot = (pageId, atPageId) => {
+    isDirtyRef.current = true;
+    setFolders(f => {
+      const next = {};
+      for (const [id, folder] of Object.entries(f)) {
+        next[id] = { ...folder, pageIds: folder.pageIds.filter(pid => pid !== pageId) };
+      }
+      return next;
+    });
+    setOrder(o => {
+      const idx = o.indexOf(pageId);
+      const toIdx = atPageId ? o.indexOf(atPageId) : -1;
+      if (idx === -1) return o;
+      if (toIdx === -1) return o;
+      return arrayMove(o, idx, toIdx);
+    });
+  };
+
+  const reorderFolderPages = (fid, pageId, atPageId) => {
+    isDirtyRef.current = true;
+    setFolders(f => {
+      const folder = f[fid]; if (!folder) return f;
+      const ids = [...folder.pageIds];
+      const idx = ids.indexOf(pageId);
+      const toIdx = ids.indexOf(atPageId);
+      if (idx === -1 || toIdx === -1) return f;
+      return { ...f, [fid]: { ...folder, pageIds: arrayMove(ids, idx, toIdx) } };
+    });
+  };
+
+  const reorderPages = (pageId, atPageId) => {
+    isDirtyRef.current = true;
+    setOrder(o => {
+      const idx = o.indexOf(pageId);
+      const toIdx = o.indexOf(atPageId);
+      if (idx === -1 || toIdx === -1) return o;
+      return arrayMove(o, idx, toIdx);
+    });
+  };
+
+  const reorderFolders = (fid, atFid) => {
+    isDirtyRef.current = true;
+    setFolderOrder(o => {
+      const idx = o.indexOf(fid);
+      const toIdx = o.indexOf(atFid);
+      if (idx === -1 || toIdx === -1) return o;
+      return arrayMove(o, idx, toIdx);
+    });
+  };
+
+  const nestFolder = (fid, parentFid) => {
+    if (fid === parentFid) return;
+    let cur = parentFid;
+    while (cur) {
+      if (cur === fid) return; // evitar ciclos
+      cur = folders[cur]?.parentId || null;
+    }
+    isDirtyRef.current = true;
+    setFolders(f => ({ ...f, [fid]: { ...f[fid], parentId: parentFid } }));
+    setFolderOrder(o => {
+      const without = o.filter(x => x !== fid);
+      const kids = Object.values(folders).filter(x => x.id !== fid && x.parentId === parentFid).map(x => x.id);
+      const anchorIds = [parentFid, ...kids];
+      let lastIdx = -1;
+      without.forEach((id, i) => { if (anchorIds.includes(id)) lastIdx = i; });
+      const next = [...without];
+      next.splice(lastIdx + 1, 0, fid);
+      return next;
+    });
+  };
+
+  const moveFolderToRootEnd = (fid) => {
+    isDirtyRef.current = true;
+    setFolders(f => ({ ...f, [fid]: { ...f[fid], parentId: null } }));
+    setFolderOrder(o => {
+      const without = o.filter(x => x !== fid);
+      const rootIds = Object.values(folders).filter(x => x.id !== fid && !x.parentId).map(x => x.id);
+      let lastIdx = -1;
+      without.forEach((id, i) => { if (rootIds.includes(id)) lastIdx = i; });
+      const next = [...without];
+      next.splice(lastIdx + 1, 0, fid);
+      return next;
+    });
+  };
+
+  const handleSidebarDragStart = (e) => {
+    const [type, id] = e.active.id.split(":");
+    setSidebarDragActive({ type, id });
+    setSidebarHover(null);
+  };
+
+  const handleSidebarDragOver = (e) => {
+    const { active, over } = e;
+    if (!over) { setSidebarHover(null); return; }
+    const aType = active.id.split(":")[0];
+    const aId = active.id.split(":")[1];
+    const [oType, oId] = over.id.split(":");
+    let mode = "insert";
+    if (aType === "page" && oType === "folder") mode = "highlight";
+    if (aType === "folder" && oType === "folder") {
+      const aParent = folders[aId]?.parentId || null;
+      const oParent = folders[oId]?.parentId || null;
+      mode = aParent === oParent ? "insert" : "highlight";
+    }
+    setSidebarHover({ id: oId, mode });
+  };
+
+  const handleSidebarDragEnd = (e) => {
+    const { active, over } = e;
+    setSidebarDragActive(null);
+    setSidebarHover(null);
+    if (!over || active.id === over.id) return;
+    const [aType, aId] = active.id.split(":");
+    const [oType, oId] = over.id.split(":");
+    if (aType === "page") {
+      if (oType === "folder") {
+        movePageIntoFolder(aId, oId);
+      } else {
+        const aFolder = getFolderOfPage(aId);
+        const oFolder = getFolderOfPage(oId);
+        if (aFolder === oFolder) {
+          if (aFolder) reorderFolderPages(aFolder, aId, oId);
+          else reorderPages(aId, oId);
+        } else {
+          if (oFolder) movePageIntoFolderAt(aId, oFolder, oId);
+          else movePageToRoot(aId, oId);
+        }
+      }
+    } else {
+      if (oType === "folder") {
+        const aParent = folders[aId]?.parentId || null;
+        const oParent = folders[oId]?.parentId || null;
+        if (aParent === oParent) reorderFolders(aId, oId);
+        else nestFolder(aId, oId);
+      } else if (!folders[aId]?.parentId) {
+        moveFolderToRootEnd(aId);
+      }
+    }
+  };
+
+  const sidebarCollision = (args) => {
+    const collisions = pointerWithin(args);
+    if (collisions.length <= 1) return collisions;
+    const containers = (args.droppableContainers?.toArray?.() || []);
+    const depthOf = (id) => {
+      const container = containers.find(c => c.id === id);
+      let n = container?.node; let d = 0;
+      while (n) { n = n.parentElement; d++; }
+      return d;
+    };
+    return [...collisions].sort((a, b) => depthOf(b.id) - depthOf(a.id));
   };
 
   // --- Soft delete: marca con deletedAt en lugar de borrar físicamente ---
@@ -1476,6 +1692,8 @@ export default function App() {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-2 pb-4">
+            <DndContext sensors={sidebarSensors} collisionDetection={sidebarCollision}
+                        onDragStart={handleSidebarDragStart} onDragOver={handleSidebarDragOver} onDragEnd={handleSidebarDragEnd}>
             {searchHits ? (
               <div className="pt-1">
                 {searchHits.length === 0 && <p className="px-2 py-2 text-[13px]" style={{ color: T.muted }}>Sin resultados.</p>}
@@ -1484,15 +1702,15 @@ export default function App() {
             ) : (
               <>
                 {/* Carpetas */}
-                {folderOrder.map(fid => {
+                {folderOrder.filter(fid => {
+                  const f = folders[fid];
+                  return f && !f.parentId;
+                }).map(fid => {
                   const folder = folders[fid];
-                  if (!folder) return null;
-                  const folderPageIds = folder.pageIds.filter(pid => pages[pid] && !pages[pid].deletedAt && !pages[pid].isSharedWithMe);
                   return (
                     <FolderRow
                       key={fid}
                       folder={folder}
-                      folderPageIds={folderPageIds}
                       pages={pages}
                       childrenOf={childrenOf}
                       currentId={currentId}
@@ -1504,17 +1722,15 @@ export default function App() {
                       deletePage={softDeletePage}
                       setConfirmDialog={setConfirmDialog}
                       onEditFolder={(fid, name, color) => renameFolder(fid, name, color)}
-                      onDeleteFolder={(fid) => setConfirmDialog({
-                        title: `¿Eliminar la carpeta "${folder.name}"?`,
-                        message: "Las páginas dentro quedarán sueltas, no se eliminarán.",
-                        onConfirm: () => deleteFolder(fid)
-                      })}
+                      onDeleteFolder={(fid) => deleteFolder(fid)}
                       folders={folders}
                       folderOrder={folderOrder}
                       addPageToFolder={addPageToFolder}
                       removePageFromFolder={removePageFromFolder}
                       getFolderOfPage={getFolderOfPage}
                       updatePage={updatePage}
+                      onCreateSubfolder={(fid) => addFolder("", null, fid)}
+                      hoverState={sidebarHover}
                     />
                   );
                 })}
@@ -1524,9 +1740,27 @@ export default function App() {
                       selectPage={selectPage} expanded={expanded} setExpanded={setExpanded} addPage={addPage}
                       deletePage={softDeletePage} sharedPages={sharedPages} sharedByMe={sharedByMe} setConfirmDialog={setConfirmDialog}
                       folders={folders} folderOrder={folderOrder} addPageToFolder={addPageToFolder} removePageFromFolder={removePageFromFolder} getFolderOfPage={getFolderOfPage}
-                      updatePage={updatePage} />
+                      updatePage={updatePage} hoverState={sidebarHover} />
               </>
             )}
+            <DragOverlay>
+              {sidebarDragActive && (
+                sidebarDragActive.type === "page" ? (
+                  <div className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] shadow-lg"
+                       style={{ background: T.sidebar, borderColor: T.border, color: T.ink, width: "max-content" }}>
+                    <span>{pages[sidebarDragActive.id]?.icon}</span>
+                    <span className="truncate">{pages[sidebarDragActive.id]?.title || "Sin título"}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] shadow-lg"
+                       style={{ background: T.sidebar, borderColor: T.border, color: T.ink, width: "max-content" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: folders[sidebarDragActive.id]?.color }} />
+                    <span className="truncate font-semibold">{folders[sidebarDragActive.id]?.name}</span>
+                  </div>
+                )
+              )}
+            </DragOverlay>
+            </DndContext>
 
           </nav>
 
@@ -2495,7 +2729,7 @@ function ImageEditorModal({ imageSrc, onClose, onSave }) {
 }
 
 /* ================= Árbol lateral ================= */
-function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, sharedByMe, setConfirmDialog, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage }) {
+function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, sharedPages, sharedByMe, setConfirmDialog, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage, hoverState }) {
   const render = (id, depth) => {
     const pg = pages[id]; if (!pg) return null;
     const kids = childrenOf(id); const open = expanded[id];
@@ -2523,6 +2757,7 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
                  onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
                  onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
                  onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 draggable hoverState={hoverState}
                  />
         {open && kids.map(k => render(k, depth + 1))}
       </div>
@@ -2585,11 +2820,35 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
 }
 
 /* ================= Fila de Carpeta ================= */
-function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, setConfirmDialog, onEditFolder, onDeleteFolder, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage }) {
+function FolderRow({ folder, pages, childrenOf, currentId, view, selectPage, expanded, setExpanded, addPage, deletePage, setConfirmDialog, onEditFolder, onDeleteFolder, folders, folderOrder, addPageToFolder, removePageFromFolder, getFolderOfPage, updatePage, onCreateSubfolder, hoverState }) {
   const [open, setOpen] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [editingFolder, setEditingFolder] = useState(false);
   const menuRef = useRef(null);
+
+  const { attributes: fAttrs, listeners: fListeners, setNodeRef: setFDragRef, isDragging: fDragging } = useDraggable({ id: `folder:${folder.id}` });
+  const { setNodeRef: setFDropRef } = useDroppable({ id: `folder:${folder.id}` });
+  const fSafeListeners = useMemo(() => ({
+    ...fListeners,
+    onPointerDown: (e) => { if (e.target && e.target.closest && e.target.closest("input, textarea")) return; fListeners.onPointerDown?.(e); },
+  }), [fListeners]);
+  const folderHover = hoverState && hoverState.id === folder.id ? hoverState.mode : null;
+
+  const folderPageIds = (folder.pageIds || []).filter(pid => pages[pid] && !pages[pid].deletedAt && !pages[pid].isSharedWithMe);
+  const subFolderIds = folderOrder.filter(fid => { const f = folders[fid]; return f && f.parentId === folder.id; });
+
+  const confirmDelete = () => {
+    const parentName = folder.parentId && folders[folder.parentId] ? folders[folder.parentId].name : null;
+    if (setConfirmDialog) {
+      setConfirmDialog({
+        title: `¿Eliminar la carpeta "${folder.name}"?`,
+        message: parentName
+          ? `La carpeta se eliminará. Las páginas que contiene pasarán a la carpeta "${parentName}".`
+          : "La carpeta y sus subcarpetas se eliminarán. Las páginas quedarán sueltas, no se eliminarán.",
+        onConfirm: () => onDeleteFolder(folder.id)
+      });
+    }
+  };
 
   useEffect(() => {
     const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false); };
@@ -2622,6 +2881,7 @@ function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, 
                  onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
                  onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
                  onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 draggable hoverState={hoverState}
                  />
         {isOpen && kids.map(k => renderPage(k, depth + 1))}
       </div>
@@ -2630,9 +2890,20 @@ function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, 
 
 
   return (
-    <div className="mb-1">
+    <div ref={setFDropRef} className="mb-1">
       {/* Header de la carpeta */}
-      <div className="group hov flex items-center rounded-md pr-1 pl-1 py-0.5" style={{ background: "transparent" }}>
+      <div ref={setFDragRef} {...fAttrs} {...fSafeListeners}
+           className="group hov flex items-center rounded-md pr-1 pl-1 py-0.5"
+           style={{
+             background: folderHover === "highlight" ? T.accentSoft : "transparent",
+             boxShadow: folderHover === "highlight" ? `0 0 0 2px ${T.accent} inset`
+                        : folderHover === "insert" ? `0 2px 0 0 ${T.accent} inset`
+                        : undefined,
+             opacity: fDragging ? 0.4 : 1,
+             position: fDragging ? "relative" : undefined,
+             zIndex: fDragging ? 3 : undefined,
+             cursor: fDragging ? "grabbing" : "default"
+           }}>
         <button onClick={() => setOpen(o => !o)} className="hov rounded p-0.5 flex-shrink-0">
           {open ? <ChevronDown size={13} style={{ color: T.muted }} /> : <ChevronRight size={13} style={{ color: T.muted }} />}
         </button>
@@ -2652,11 +2923,15 @@ function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, 
           {showMenu && (
             <div className="absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
                  style={{ background: T.sidebar, borderColor: T.border }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => { setShowMenu(false); onCreateSubfolder(folder.id); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left" style={{ color: T.ink }}>
+                <FolderPlus size={13} /> Nueva subcarpeta
+              </button>
               <button onClick={() => { setShowMenu(false); setEditingFolder(true); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left" style={{ color: T.ink }}>
                 <Pencil size={13} /> Editar carpeta
               </button>
-              <button onClick={() => { setShowMenu(false); onDeleteFolder(folder.id); }}
+              <button onClick={() => { setShowMenu(false); confirmDelete(); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-red-500/10 transition text-left" style={{ color: "var(--danger, #ef4444)" }}>
                 <Trash2 size={13} /> Eliminar carpeta
               </button>
@@ -2665,13 +2940,41 @@ function FolderRow({ folder, folderPageIds, pages, childrenOf, currentId, view, 
         </div>
       </div>
 
-      {/* Páginas dentro de la carpeta */}
+      {/* Páginas y subcarpetas dentro de la carpeta */}
       {open && (
         <div className="ml-2 pl-2 border-l" style={{ borderColor: folder.color + "60" }}>
-          {folderPageIds.length === 0 ? (
+          {subFolderIds.length === 0 && folderPageIds.length === 0 ? (
             <p className="px-2 py-1 text-[11px] italic" style={{ color: T.muted }}>Carpeta vacía</p>
           ) : (
-            folderPageIds.map(id => renderPage(id, 0))
+            <>
+              {subFolderIds.map(sfid => (
+                <FolderRow
+                  key={sfid}
+                  folder={folders[sfid]}
+                  pages={pages}
+                  childrenOf={childrenOf}
+                  currentId={currentId}
+                  view={view}
+                  selectPage={selectPage}
+                  expanded={expanded}
+                  setExpanded={setExpanded}
+                  addPage={addPage}
+                  deletePage={deletePage}
+                  setConfirmDialog={setConfirmDialog}
+                  onEditFolder={onEditFolder}
+                  onDeleteFolder={onDeleteFolder}
+                  folders={folders}
+                  folderOrder={folderOrder}
+                  addPageToFolder={addPageToFolder}
+                  removePageFromFolder={removePageFromFolder}
+                  getFolderOfPage={getFolderOfPage}
+                  updatePage={updatePage}
+                  onCreateSubfolder={onCreateSubfolder}
+                  hoverState={hoverState}
+                />
+              ))}
+              {folderPageIds.map(id => renderPage(id, 0))}
+            </>
           )}
         </div>
       )}
@@ -2769,12 +3072,21 @@ function FolderEditModal({ folder, onClose, onSave }) {
   );
 }
 
-function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub, onDelete, isRoot, folders, folderOrder, currentFolderId, onAddToFolder, onRemoveFromFolder, onRename }) {
+function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub, onDelete, isRoot, folders, folderOrder, currentFolderId, onAddToFolder, onRemoveFromFolder, onRename, draggable, hoverState }) {
   const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(pg.title || "");
   const menuRef = useRef(null);
   const renameRef = useRef(null);
+
+  const { attributes: pAttrs, listeners: pListeners, setNodeRef: setPDragRef, isDragging: pDragging } = useDraggable({ id: `page:${pg.id}` });
+  const { setNodeRef: setPDropRef } = useDroppable({ id: `page:${pg.id}` });
+  const pRef = useCallback(node => { setPDragRef(node); setPDropRef(node); }, [setPDragRef, setPDropRef]);
+  const pSafeListeners = useMemo(() => ({
+    ...pListeners,
+    onPointerDown: (e) => { if (e.target && e.target.closest && e.target.closest("input, textarea")) return; pListeners.onPointerDown?.(e); },
+  }), [pListeners]);
+  const pageHover = hoverState && hoverState.id === pg.id ? hoverState.mode : null;
 
   useEffect(() => {
     if (!showMenu) return;
@@ -2790,13 +3102,45 @@ function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub
     }
   }, [isRenaming]);
 
+  const renderFolderOption = (fid, depth) => {
+    const f = folders[fid];
+    if (!f) return null;
+    const isCurrent = fid === currentFolderId;
+    const kids = folderOrder.filter(sfid => { const sf = folders[sfid]; return sf && sf.parentId === fid; });
+    return (
+      <div key={fid}>
+        <button
+          onClick={() => { if (!isCurrent) { onAddToFolder(fid); setShowMenu(false); } }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
+          style={{ color: T.ink, paddingLeft: 12 + depth * 14, ...(isCurrent ? { opacity: 0.55, cursor: "default", fontWeight: 600 } : {}) }}
+        >
+          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: f.color }} />
+          <span className="truncate">{f.name}</span>
+          {isCurrent && <Check size={12} style={{ color: T.accent, marginLeft: "auto", flexShrink: 0 }} />}
+        </button>
+        {kids.map(k => renderFolderOption(k, depth + 1))}
+      </div>
+    );
+  };
+
   const handleRenameSubmit = () => {
     if (onRename) onRename(renameValue.trim() || "Sin título");
     setIsRenaming(false);
   };
 
   return (
-    <div className="hov group flex items-center rounded-md pr-0.5" style={{ paddingLeft: 4 + depth * 14, background: active ? T.accentSoft : "transparent" }}>
+    <div ref={draggable ? pRef : undefined} {...(draggable ? pAttrs : {})} {...(draggable ? pSafeListeners : {})}
+         className="hov group flex items-center rounded-md pr-0.5"
+         style={{
+           paddingLeft: 4 + depth * 14,
+           background: active ? T.accentSoft : "transparent",
+           ...(pageHover === "insert" ? { boxShadow: `0 2px 0 0 ${T.accent} inset, 0 -2px 0 0 transparent` } : {}),
+           ...(pageHover === "highlight" ? { boxShadow: `0 0 0 2px ${T.accent} inset`, background: T.accentSoft } : {}),
+           opacity: draggable && pDragging ? 0.35 : 1,
+           position: draggable && pDragging ? "relative" : undefined,
+           zIndex: draggable && pDragging ? 3 : undefined,
+           cursor: draggable && pDragging ? "grabbing" : "default"
+         }}>
       {hasKids ? (
         <button onClick={onToggle} className="hov rounded p-0.5 flex-shrink-0">
           {open ? <ChevronDown size={13} style={{ color: T.muted }} /> : <ChevronRight size={13} style={{ color: T.muted }} />}
@@ -2877,21 +3221,10 @@ function PageRow({ pg, depth, active, hasKids, open, onToggle, onClick, onAddSub
                   {folderOrder.length === 0 && !currentFolderId ? (
                     <p className="px-3 py-2 text-[12px] italic" style={{ color: T.muted }}>Sin carpetas creadas</p>
                   ) : (
-                    folderOrder.map(fid => {
-                      if (!folders[fid] || fid === currentFolderId) return null;
+                    folderOrder.filter(fid => {
                       const f = folders[fid];
-                      return (
-                        <button
-                          key={fid}
-                          onClick={() => { onAddToFolder(fid); setShowMenu(false); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[var(--accent-soft)] transition text-left"
-                          style={{ color: T.ink }}
-                        >
-                          <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: f.color }} />
-                          <span className="truncate">{f.name}</span>
-                        </button>
-                      );
-                    })
+                      return f && !f.parentId;
+                    }).map(fid => renderFolderOption(fid, 0))
                   )}
                 </>
               )}
@@ -3326,6 +3659,12 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   const [onlineUsers, setOnlineUsers] = useState([]);
   const channelRef = useRef(null);
 
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   const setBlocks = (blocks) => updatePage(page.id, { blocks });
   const changeBlock = (id, patch) => {
     updateBlockInPage(page.id, id, patch);
@@ -3339,15 +3678,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
     }
   };
 
-  const moveBlock = (id, direction) => {
-    const idx = page.blocks.findIndex(b => b.id === id);
-    if (idx === -1) return;
-    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= page.blocks.length) return;
-    const next = [...page.blocks];
-    const temp = next[idx];
-    next[idx] = next[targetIdx];
-    next[targetIdx] = temp;
+  const commitBlocks = (next) => {
     setBlocks(next);
 
     // Broadcast el cambio en tiempo real a otros clientes
@@ -3358,6 +3689,15 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
         payload: { page: { ...page, blocks: next }, userId: user?.id }
       });
     }
+  };
+
+  const handleBlockDragEnd = (e) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = page.blocks.findIndex(b => b.id === active.id);
+    const newIndex = page.blocks.findIndex(b => b.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    commitBlocks(arrayMove(page.blocks, oldIndex, newIndex));
   };
 
   // Suscripción Realtime a Presence y Broadcast para la página activa
@@ -3536,18 +3876,18 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
         </div>
       </div>
 
-      <div>
-        {page.blocks.map((b, idx) => (
-          <Block key={b.id} block={b} index={idx} total={page.blocks.length} focusId={focusId} clearFocus={() => setFocusId(null)}
-                 onChange={patch => changeBlock(b.id, patch)}
-                 onEnter={(afterType, carry) => insertAfter(b.id, { ...emptyBlock(afterType), text: carry })}
-                 onDelete={() => removeBlock(b.id)}
-                 onMoveUp={() => moveBlock(b.id, "up")}
-                 onMoveDown={() => moveBlock(b.id, "down")}
-                 onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }}
-                 showToast={showToast} user={user} />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleBlockDragEnd}>
+        <SortableContext items={page.blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+          {page.blocks.map((b, idx) => (
+            <SortableBlock key={b.id} block={b} index={idx} focusId={focusId} clearFocus={() => setFocusId(null)}
+                           onChange={patch => changeBlock(b.id, patch)}
+                           onEnter={(afterType, carry) => insertAfter(b.id, { ...emptyBlock(afterType), text: carry })}
+                           onDelete={() => removeBlock(b.id)}
+                           onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }}
+                           showToast={showToast} user={user} />
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <div onClick={() => insertAfter(page.blocks[page.blocks.length - 1].id, emptyBlock())} className="mt-1 h-24 cursor-text" />
 
@@ -4309,10 +4649,36 @@ function LinkBlock({ block, onChange, onDelete }) {
   );
 }
 
+/* ================= Bloque ordenable (drag & drop) ================= */
+function SortableBlock(props) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.block.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.55 : 1,
+    position: isDragging ? "relative" : undefined,
+    zIndex: isDragging ? 50 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Block {...props} dragHandle={{ attributes, listeners, isDragging }} />
+    </div>
+  );
+}
+
 /* ================= Bloque ================= */
-function Block({ block, index, total, focusId, clearFocus, onChange, onEnter, onDelete, onMoveUp, onMoveDown, onFocusPrev, showToast, user }) {
+function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev, showToast, user, dragHandle }) {
   const ref = useRef(null);
   const [menu, setMenu] = useState(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moreOpen]);
 
   const grow = () => { const el = ref.current; if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } };
   useEffect(grow, [block.text, block.type]);
@@ -4334,7 +4700,8 @@ function Block({ block, index, total, focusId, clearFocus, onChange, onEnter, on
 
   const handleChange = (e) => {
     const v = e.target.value;
-    if (v.startsWith("/") && !v.includes(" ")) setMenu({ query: v.slice(1) }); else if (menu) setMenu(null);
+    const q = v.slice(1).trim();
+    if (v.startsWith("/") && !q.includes(" ")) setMenu({ query: q }); else if (menu) setMenu(null);
     const sc = { "# ": "h1", "## ": "h2", "### ": "h3", "- ": "bullet", "* ": "bullet", "1. ": "number", "[] ": "todo", "[ ] ": "todo", "> ": "quote" };
     for (const [k, t] of Object.entries(sc)) { if (v === k) { onChange({ type: t, text: "" }); return; } }
     if (v === "---") { onChange({ type: "divider", text: "" }); return; }
@@ -4403,21 +4770,32 @@ function Block({ block, index, total, focusId, clearFocus, onChange, onEnter, on
         {blockContent}
       </div>
 
-      {/* Control pill (up, down, delete) */}
+      {/* Control pill (drag handle, menú …) */}
       <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-neutral-100/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 rounded-xl px-1.5 py-0.5 shadow-md opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-        {index > 0 && (
-          <button onClick={onMoveUp} title="Subir bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
-            <ChevronUp size={13} />
-          </button>
-        )}
-        {index < total - 1 && (
-          <button onClick={onMoveDown} title="Bajar bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
-            <ChevronDown size={13} />
-          </button>
-        )}
-        <button onClick={onDelete} title="Eliminar bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-red-500 active:scale-95 transition">
-          <Trash2 size={13} />
+        <button
+          {...(dragHandle?.attributes || {})}
+          {...(dragHandle?.listeners || {})}
+          title="Arrastrar para mover"
+          className={`hov rounded p-1 text-neutral-400 hover:text-[var(--accent)] transition ${dragHandle?.isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+          style={{ touchAction: "none", WebkitUserSelect: "none" }}
+        >
+          <GripVertical size={13} />
         </button>
+        <div className="relative" ref={moreRef}>
+          <button onClick={() => setMoreOpen(v => !v)} title="Opciones del bloque" className="hov rounded p-1 cursor-pointer text-neutral-400 hover:text-[var(--accent)] active:scale-95 transition">
+            <MoreHorizontal size={13} />
+          </button>
+          {moreOpen && (
+            <div className="absolute right-0 top-7 z-50 w-44 rounded-xl border shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+                 style={{ background: T.sidebar, borderColor: T.border }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => { setMoreOpen(false); onDelete(); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-red-500/10 transition text-left"
+                      style={{ color: "var(--danger, #ef4444)" }}>
+                <Trash2 size={13} /> Eliminar bloque
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -4431,7 +4809,7 @@ function MenuList({ query, onPick }) {
     const onKey = (e) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setSel(s => Math.min(s + 1, items.length - 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setSel(s => Math.max(s - 1, 0)); }
-      else if (e.key === "Enter") { if (items[sel]) { e.preventDefault(); onPick(items[sel].type); } }
+      else if (e.key === "Enter") { if (items[sel]) { e.preventDefault(); e.stopPropagation(); onPick(items[sel].type); } }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
