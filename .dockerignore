@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+dist
+dev-dist
+.git
+.gitignore
+graphify-out
+server/data
+server/node_modules
+*.log
+vite.config.js.timestamp-*
