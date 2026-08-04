@@ -1,5 +1,10 @@
 import { precacheAndRoute } from "workbox-precaching";
 
+// Forzar la activación inmediata del nuevo Service Worker sin esperar a cerrar pestañas
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
 // Precarga los recursos compilados por Vite
 precacheAndRoute(self.__WB_MANIFEST || []);
 
