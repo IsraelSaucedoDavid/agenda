@@ -55,6 +55,13 @@ const chipLabel = (date, time) => {
   const base = `${d.getDate()} ${MONTHS_S[d.getMonth()]}`;
   return time ? `${base}, ${time}` : base;
 };
+const toNotifyAt = (date, time) => {
+  if (!date || !time) return null;
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const dt = new Date(y, m - 1, d, hh, mm);
+  return Number.isNaN(dt.getTime()) ? null : dt.toISOString();
+};
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -95,7 +102,11 @@ export default function App() {
   const [order, setOrder] = useState([]);
   const [folders, setFolders] = useState({});
   const [folderOrder, setFolderOrder] = useState([]);
-  const [currentId, setCurrentId] = useState(() => localStorage.getItem("orbita:last_active_page") || null);
+  const [currentId, setCurrentId] = useState(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("page");
+    if (fromUrl) return fromUrl;
+    return localStorage.getItem("orbita:last_active_page") || null;
+  });
   const [view, setView] = useState(() => localStorage.getItem("orbita:last_active_view") || "docs");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState({});
@@ -165,6 +176,15 @@ export default function App() {
       localStorage.setItem("orbita:last_active_page", currentId);
     }
   }, [currentId]);
+
+  useEffect(() => {
+    if (!order.length) return;
+    setCurrentId(id => {
+      if (id && (order.includes(id) || pages[id]?.isSharedWithMe)) return id;
+      return getInitialPageId(order);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
 
   useEffect(() => {
     localStorage.setItem("orbita:last_active_view", view);
@@ -1370,6 +1390,7 @@ export default function App() {
       text: text.trim(),
       date: date || null,
       time: time || null,
+      notifyAt: toNotifyAt(date || null, time || null),
       checked,
       completedAt: checked ? new Date().toISOString() : null
     };
@@ -1428,29 +1449,28 @@ export default function App() {
     return list;
   }, [order, pages]);
 
-  /* --- recordatorios: revisa cada 20s y avisa a la hora exacta --- */
-  const todosRef = useRef(allTodos);
-  const notifiedRef = useRef(new Set());
-  useEffect(() => { todosRef.current = allTodos; }, [allTodos]);
+  /* --- migración: calcula notifyAt para todos con hora ya guardados --- */
+  const backfilledRef = useRef(false);
   useEffect(() => {
-    if (!notifOn) return;
-    const tick = () => {
-      if (!("Notification" in window) || Notification.permission !== "granted") return;
-      const now = new Date();
-      const day = toStr(now);
-      const hm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      for (const t of todosRef.current) {
-        if (t.checked || !t.date || !t.time) continue;
-        if (t.date === day && t.time === hm && !notifiedRef.current.has(t.blockId)) {
-          notifiedRef.current.add(t.blockId);
-          try { new Notification("⏰ " + t.text, { body: `${t.pageIcon} ${t.pageTitle}`, icon: "/icon-192.png" }); } catch { /* nada */ }
+    if (backfilledRef.current) return;
+    let changed = false;
+    const next = {};
+    for (const [pid, pg] of Object.entries(pages)) {
+      if (!pg || !Array.isArray(pg.blocks)) { next[pid] = pg; continue; }
+      let bChanged = false;
+      const blocks = pg.blocks.map(b => {
+        if (b && b.type === "todo" && b.date && b.time && !b.notifyAt) {
+          bChanged = true;
+          return { ...b, notifyAt: toNotifyAt(b.date, b.time) };
         }
-      }
-    };
-    const iv = setInterval(tick, 20000);
-    tick();
-    return () => clearInterval(iv);
-  }, [notifOn]);
+        return b;
+      });
+      if (bChanged) changed = true;
+      next[pid] = bChanged ? { ...pg, blocks } : pg;
+    }
+    if (changed) setPages(next);
+    else backfilledRef.current = Object.keys(pages).length > 0;
+  }, [pages]);
 
   const subscribeUserToPush = async () => {
     if (!user) return;
@@ -1511,6 +1531,11 @@ export default function App() {
       showToast("No se pudo activar los recordatorios.", "error");
     }
   };
+
+  useEffect(() => {
+    if (user && notifOn) subscribeUserToPush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, notifOn]);
 
   /* --- respaldo --- */
   const exportData = () => {
@@ -2275,7 +2300,7 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: T.muted }}>Recordatorios</p>
                 {notifOn ? (
                   <div className="flex items-start gap-2 rounded-md border px-3 py-2 text-[13px]" style={{ borderColor: T.border, color: T.accent }}>
-                    <Bell size={15} className="mt-0.5 flex-shrink-0" /> Activados. Te avisa a la hora de cada tarea, mientras la app esté abierta.
+                    <Bell size={15} className="mt-0.5 flex-shrink-0" /> Activados. Te avisamos de cada tarea a su hora, aunque la app esté cerrada.
                   </div>
                 ) : (
                   <button onClick={enableNotifs} className="flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[13px] font-medium text-white" style={{ background: T.accent }}>
@@ -4287,10 +4312,10 @@ function DateChip({ block, onChange }) {
             <button onClick={() => setOpen(false)}><X size={14} style={{ color: T.muted }} /></button>
           </div>
           <label className="mb-1 block text-[11px]" style={{ color: T.muted }}>Día</label>
-          <input type="date" value={block.date || ""} onChange={e => onChange({ date: e.target.value || null })} className="mb-2 w-full rounded border px-2 py-1 text-[13px]" style={fieldStyle} />
+          <input type="date" value={block.date || ""} onChange={e => onChange({ date: e.target.value || null, notifyAt: toNotifyAt(e.target.value || null, block.time || null) })} className="mb-2 w-full rounded border px-2 py-1 text-[13px]" style={fieldStyle} />
           <label className="mb-1 block text-[11px]" style={{ color: T.muted }}>Hora (opcional)</label>
-          <input type="time" value={block.time || ""} onChange={e => onChange({ time: e.target.value || null })} className="mb-2 w-full rounded border px-2 py-1 text-[13px]" style={fieldStyle} />
-          <button onClick={() => { onChange({ date: null, time: null }); setOpen(false); }} className="text-[12px]" style={{ color: T.muted }}>Quitar fecha</button>
+          <input type="time" value={block.time || ""} onChange={e => onChange({ time: e.target.value || null, notifyAt: toNotifyAt(block.date || null, e.target.value || null) })} className="mb-2 w-full rounded border px-2 py-1 text-[13px]" style={fieldStyle} />
+          <button onClick={() => { onChange({ date: null, time: null, notifyAt: null }); setOpen(false); }} className="text-[12px]" style={{ color: T.muted }}>Quitar fecha</button>
         </div>
       )}
     </div>
