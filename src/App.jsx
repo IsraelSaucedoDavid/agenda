@@ -1603,7 +1603,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (user && notifOn) subscribeUserToPush();
+    if (user && (notifOn || ("Notification" in window && Notification.permission === "granted"))) {
+      subscribeUserToPush();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, notifOn]);
 
