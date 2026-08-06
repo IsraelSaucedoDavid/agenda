@@ -6,7 +6,7 @@ import {
   FileText, CalendarDays, ListChecks, X, Sun, Moon, Settings, Download, Upload, Bell, AlertCircle, AlertTriangle, Menu, User, Check, Pencil,
   Shield, Loader2, Users, Megaphone, Camera, Mic, Link, Play, Square, Pause, ExternalLink, Image, Music, UploadCloud, RotateCcw,
   BarChart3, Flame, Award, TrendingUp, Target, Zap, CheckCircle2, UserPlus, Share2, Globe, Lock, Eye, UserCheck,
-  FolderPlus, Folder, FolderOpen, MoreHorizontal, GripVertical
+  FolderPlus, Folder, FolderOpen, MoreHorizontal, GripVertical, Smartphone, Copy
 } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, KeyboardSensor, closestCenter, pointerWithin, useSensor, useSensors, useDraggable, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
@@ -126,6 +126,7 @@ export default function App() {
   const [theme, setTheme] = useState("light");
   const [notifOn, setNotifOn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [syncStatus, setSyncStatus] = useState("synced"); // "synced", "syncing", "offline"
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -161,6 +162,17 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem("orbita:accepted_shares", JSON.stringify(acceptedShares)); } catch { /* ignore */ }
   }, [acceptedShares]);
+
+  useEffect(() => {
+    const onBIP = (e) => { e.preventDefault(); setDeferredPrompt(e); };
+    const onInstalled = () => setDeferredPrompt(null);
+    window.addEventListener("beforeinstallprompt", onBIP);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBIP);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem("orbita:shared_pages", JSON.stringify(sharedPages)); } catch { /* ignore */ }
@@ -1942,7 +1954,7 @@ export default function App() {
                        user={user} onLogout={handleLogout} profile={profile}
                        updateProfileData={updateProfileData} uploadAvatar={uploadAvatar}
                        removeAvatar={removeAvatar} deleteAccount={deleteAccount}
-                       setConfirmDialog={setConfirmDialog} />
+                       setConfirmDialog={setConfirmDialog} deferredPrompt={deferredPrompt} />
       )}
 
       {/* Panel desplegable de Notificaciones 🔔 */}
@@ -2202,7 +2214,117 @@ function DeleteAccountTermsModal({ onClose, onProceed }) {
 }
 
 /* ================= Ajustes ================= */
-function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar, deleteAccount, setConfirmDialog }) {
+/* ================= Manual de Instalación (Android / iOS / Escritorio) ================= */
+function InstallGuide({ deferredPrompt }) {
+  const [copied, setCopied] = useState(false);
+
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isDesktop = !isIOS && !isAndroid;
+  const iosSafari = isIOS && !/CriOS|FxiOS|EdgiOS/i.test(ua);
+  const installed = window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* portapapeles bloqueado */ }
+  };
+
+  const install = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch { /* usuario cerró el diálogo */ }
+  };
+
+  const step = (n, children) => (
+    <div className="flex items-start gap-2.5 rounded-lg border p-3" style={{ borderColor: T.border }}>
+      <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: T.accent }}>{n}</span>
+      <div className="text-[13px] leading-relaxed" style={{ color: T.ink }}>{children}</div>
+    </div>
+  );
+
+  if (installed) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border px-3 py-2.5 text-[13px]" style={{ borderColor: T.accent, color: T.accent, background: T.accentSoft }}>
+          <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
+          <div>Órbita ya está instalada en este dispositivo. Si no te llegan los recordatorios, revisa que las notificaciones estén activadas y que la batería no esté en modo de ahorro.</div>
+        </div>
+        <div className="rounded-md border px-3 py-2.5 text-[13px]" style={{ borderColor: T.border, color: T.muted }}>
+          Abre siempre Órbita <strong>desde el ícono</strong> de tu pantalla de inicio, no desde el navegador, para recibir recordatorios aunque la app esté cerrada.
+        </div>
+      </div>
+    );
+  }
+
+  if (isIOS) {
+    return (
+      <div className="space-y-4">
+        {!iosSafari && (
+          <div className="flex items-start gap-2 rounded-md border px-3 py-2.5 text-[13px]" style={{ borderColor: "#f59e0b", color: "#b45309", background: "rgba(245,158,11,.08)" }}>
+            <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
+            <div>
+              En iPhone/iPad las notificaciones <strong>solo funcionan instalando Órbita desde Safari</strong>. Ahora estás en otro navegador (Chrome/Firefox/Edge), así que copia el enlace y ábrelo en Safari:
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button onClick={copyLink} className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-medium text-white" style={{ background: T.accent }}>
+                  <Copy size={13} /> {copied ? "¡Copiado!" : "Copiar enlace"}
+                </button>
+                <a href={window.location.href} onClick={copyLink} className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-medium" style={{ borderColor: T.border, color: T.ink }}>
+                  <ExternalLink size={13} /> Copiar y abrir Órbita
+                </a>
+              </div>
+              <p className="mt-2 text-[12px]" style={{ color: T.muted }}>Consejo: también puedes usar el botón Compartir de tu navegador → “Abrir en Safari”.</p>
+            </div>
+          </div>
+        )}
+        <p className="text-[13px]" style={{ color: T.muted }}>Una vez en Safari, sigue estos pasos:</p>
+        {step(1, <>Toca el botón <strong>Compartir</strong> (cuadrado con flecha hacia arriba) en la barra inferior.</>)}
+        {step(2, <>Elige <strong>“Añadir a pantalla de inicio”</strong>.</>)}
+        {step(3, <>Pulsa <strong>Añadir</strong> (arriba a la derecha).</>)}
+        {step(4, <>Abre Órbita <strong>desde el ícono</strong> y activa las <strong>notificaciones</strong> cuando lo pida.</>)}
+      </div>
+    );
+  }
+
+  if (isAndroid) {
+    return (
+      <div className="space-y-4">
+        {deferredPrompt && (
+          <button onClick={install} className="flex w-full items-center justify-center gap-1.5 rounded-md py-2.5 text-[13px] font-semibold text-white" style={{ background: T.accent }}>
+            <Download size={15} /> Instalar Órbita
+          </button>
+        )}
+        <p className="text-[13px]" style={{ color: T.muted }}>{deferredPrompt ? "O también puedes hacerlo desde el navegador:" : "Desde el navegador Chrome:"}</p>
+        {step(1, <>Abre <strong>Chrome</strong> y entra a <span className="break-all font-mono text-[12px]">{window.location.origin}</span>.</>)}
+        {step(2, <>Toca el menú <strong>⋮</strong> (arriba a la derecha) y elige <strong>“Instalar aplicación”</strong> o <strong>“Agregar a pantalla de inicio”</strong>.</>)}
+        {step(3, <>Pulsa <strong>Instalar</strong>.</>)}
+        {step(4, <>Abre Órbita <strong>desde el ícono</strong> de tu pantalla de inicio y activa las <strong>notificaciones</strong> cuando lo pida.</>)}
+        <div className="rounded-md border px-3 py-2.5 text-[12px] leading-relaxed" style={{ borderColor: T.border, color: T.muted }}>
+          Importante en algunos teléfonos (Samsung, Xiaomi): si no te llegan las notificaciones, ve a Ajustes → Batería → y desactiva la optimización de batería para Chrome/Órbita.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {deferredPrompt && (
+        <button onClick={install} className="flex w-full items-center justify-center gap-1.5 rounded-md py-2.5 text-[13px] font-semibold text-white" style={{ background: T.accent }}>
+          <Download size={15} /> Instalar Órbita
+        </button>
+      )}
+      {step(1, <>Abre <strong>Chrome</strong> o <strong>Edge</strong> y entra a <span className="break-all font-mono text-[12px]">{window.location.origin}</span>.</>)}
+      {step(2, <>Toca el icono de instalar en la barra de direcciones (monitor con flecha) o el menú <strong>⋮</strong> → <strong>“Instalar Órbita”</strong>.</>)}
+      {step(3, <>Pulsa <strong>Instalar</strong> y se abrirá como una app.</>)}
+      {step(4, <>Activa las <strong>notificaciones</strong> para recibir recordatorios aunque el navegador esté cerrado.</>)}
+    </div>
+  );
+}
+
+function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImport, onClose, user, onLogout, profile, updateProfileData, uploadAvatar, removeAvatar, deleteAccount, setConfirmDialog, deferredPrompt }) {
   const fileRef = useRef(null);
   const [activeTab, setActiveTab] = useState("general"); // "general", "profile", "support", "rules"
   
@@ -2293,6 +2415,10 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                   style={{ background: activeTab === "rules" ? T.accentSoft : "transparent", color: activeTab === "rules" ? T.accent : T.ink }}>
             <AlertCircle size={15} /> Normas
           </button>
+          <button onClick={() => setActiveTab("install")} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-medium transition"
+                  style={{ background: activeTab === "install" ? T.accentSoft : "transparent", color: activeTab === "install" ? T.accent : T.ink }}>
+            <Smartphone size={15} /> Instalar
+          </button>
           <button onClick={onLogout} className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-[13px] font-semibold mt-auto" style={{ color: "var(--danger, #ef4444)" }}>
             <Minus size={15} /> Cerrar sesión
           </button>
@@ -2304,7 +2430,8 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
             <h2 className="font-serif text-lg font-bold capitalize">
               {activeTab === "general" ? "Ajustes Generales" : 
                activeTab === "profile" ? "Mi Perfil" : 
-               activeTab === "support" ? "Soporte Técnico" : "Términos y Normas"}
+               activeTab === "support" ? "Soporte Técnico" :
+               activeTab === "install" ? "Instalar en tu dispositivo" : "Términos y Normas"}
             </h2>
             <button onClick={onClose} className="hov rounded p-1"><X size={16} style={{ color: T.muted }} /></button>
           </div>
@@ -2526,6 +2653,12 @@ function SettingsModal({ theme, setTheme, notifOn, enableNotifs, onExport, onImp
                   <li><strong>Sanción:</strong> Los perfiles que violen estas normas serán suspendidos de forma indefinida por el equipo administrador.</li>
                 </ul>
               </div>
+            </div>
+          )}
+          {/* TAB: INSTALL */}
+          {activeTab === "install" && (
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+              <InstallGuide deferredPrompt={deferredPrompt} />
             </div>
           )}
         </div>
