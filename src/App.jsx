@@ -84,6 +84,41 @@ function arrayBuffersEqual(a, b) {
   return true;
 }
 
+const getDeviceId = () => {
+  try {
+    let id = localStorage.getItem("orbita_device_id");
+    if (!id) {
+      id = crypto.randomUUID ? crypto.randomUUID() : `d-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem("orbita_device_id", id);
+    }
+    return id;
+  } catch {
+    return `d-${Date.now().toString(36)}`;
+  }
+};
+
+const getDeviceFingerprint = () => {
+  const s = [
+    navigator.userAgent,
+    navigator.language,
+    (navigator.languages || []).join(","),
+    screen.width, screen.height, screen.colorDepth || screen.pixelDepth || 24,
+    (screen.orientation && screen.orientation.type) || "",
+    navigator.hardwareConcurrency || 0,
+    navigator.deviceMemory || 0,
+    navigator.maxTouchPoints || 0,
+    navigator.platform || "",
+    new Date().getTimezoneOffset(),
+    window.devicePixelRatio || 1
+  ].join("|");
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+};
+
 const EMOJIS = ["📄","📝","✅","💡","🎯","📊","💰","🚀","📅","🔥","⭐","📌","🗂️","🧠","🛠️","☕"];
 
 const BLOCK_MENU = [
@@ -1536,8 +1571,10 @@ export default function App() {
           user_id: user.id,
           endpoint: subscription.endpoint,
           p256dh: subJSON.keys.p256dh,
-          auth: subJSON.keys.auth
-        }, { onConflict: "endpoint" });
+          auth: subJSON.keys.auth,
+          device_id: getDeviceId(),
+          device_fp: getDeviceFingerprint()
+        }, { onConflict: "user_id,device_fp" });
 
       if (error) throw error;
       console.log("Suscripción Push registrada en Supabase.");
