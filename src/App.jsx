@@ -2781,7 +2781,7 @@ function Tree({ roots, childrenOf, pages, currentId, view, selectPage, expanded,
                  currentFolderId={isRoot && getFolderOfPage ? getFolderOfPage(id) : null}
                  onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
                  onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
-                 onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 onRename={pg.isSharedWithMe && pg.permission === "view" ? null : (newTitle) => updatePage(id, { title: newTitle })}
                  draggable hoverState={hoverState}
                  />
         {open && kids.map(k => render(k, depth + 1))}
@@ -2905,7 +2905,7 @@ function FolderRow({ folder, pages, childrenOf, currentId, view, selectPage, exp
                  currentFolderId={isRoot ? folder.id : null}
                  onAddToFolder={isRoot && addPageToFolder ? (fid) => addPageToFolder(id, fid) : null}
                  onRemoveFromFolder={isRoot && removePageFromFolder ? () => removePageFromFolder(id) : null}
-                 onRename={(newTitle) => updatePage(id, { title: newTitle })}
+                 onRename={pg.isSharedWithMe && pg.permission === "view" ? null : (newTitle) => updatePage(id, { title: newTitle })}
                  draggable hoverState={hoverState}
                  />
         {isOpen && kids.map(k => renderPage(k, depth + 1))}
@@ -3684,6 +3684,9 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   const [onlineUsers, setOnlineUsers] = useState([]);
   const channelRef = useRef(null);
 
+  const isOwner = !page.isSharedWithMe || (page.ownerId && page.ownerId === user?.id);
+  const readOnly = !isOwner && page.permission === "view";
+
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 8 } }),
@@ -3692,6 +3695,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
 
   const setBlocks = (blocks) => updatePage(page.id, { blocks });
   const changeBlock = (id, patch) => {
+    if (readOnly) return;
     updateBlockInPage(page.id, id, patch);
     // Broadcast el cambio en tiempo real a otros clientes
     if (channelRef.current && supabase) {
@@ -3704,6 +3708,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   };
 
   const commitBlocks = (next) => {
+    if (readOnly) return;
     setBlocks(next);
 
     // Broadcast el cambio en tiempo real a otros clientes
@@ -3810,10 +3815,12 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
   }, [page?.id]);
 
   const insertAfter = (id, block) => {
+    if (readOnly) return;
     const i = page.blocks.findIndex(b => b.id === id);
     const next = [...page.blocks]; next.splice(i + 1, 0, block); setBlocks(next); setFocusId(block.id);
   };
   const removeBlock = (id) => {
+    if (readOnly) return;
     const i = page.blocks.findIndex(b => b.id === id);
     if (page.blocks.length === 1) { setBlocks([emptyBlock()]); return; }
     setBlocks(page.blocks.filter(b => b.id !== id));
@@ -3822,8 +3829,6 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
 
   const todos = page.blocks.filter(b => b.type === "todo");
   const doneCount = todos.filter(b => b.checked).length;
-
-  const isOwner = !page.isSharedWithMe || (page.ownerId && page.ownerId === user?.id);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 pb-40 pt-14 sm:px-12">
@@ -3857,7 +3862,11 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
       )}
 
       <div className="relative mb-1">
-        <button onClick={() => setPickIcon(v => !v)} className="hov mb-2 rounded-lg px-1 text-5xl">{page.icon}</button>
+        {readOnly ? (
+          <div className="mb-2 rounded-lg px-1 text-5xl">{page.icon}</div>
+        ) : (
+          <button onClick={() => setPickIcon(v => !v)} className="hov mb-2 rounded-lg px-1 text-5xl">{page.icon}</button>
+        )}
         {pickIcon && (
           <div className="absolute z-20 mb-2 flex max-w-xs flex-wrap gap-1 rounded-lg border p-2 shadow-lg" style={{ background: T.bg, borderColor: T.border }}>
             {EMOJIS.map(e => <button key={e} onClick={() => { updatePage(page.id, { icon: e }); setPickIcon(false); }} className="hov rounded p-1 text-xl">{e}</button>)}
@@ -3866,7 +3875,8 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
       </div>
 
       <textarea value={page.title} onChange={e => updatePage(page.id, { title: e.target.value })}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); setFocusId(page.blocks[0]?.id); } }}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); if (!readOnly) setFocusId(page.blocks[0]?.id); } }}
+                readOnly={readOnly}
                 rows={1} placeholder="Sin título"
                 className="w-full resize-none overflow-hidden bg-transparent font-serif text-4xl font-bold leading-tight outline-none placeholder:text-neutral-300" style={{ color: T.ink }} />
 
@@ -3879,9 +3889,15 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
           </span>
         )}
         <div className="ml-auto flex gap-1">
-          <button onClick={() => setShareOpen(true)} className="hov flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold text-[var(--accent)] bg-[var(--accent-soft)] transition cursor-pointer">
-            <Share2 size={13} /> Compartir
-          </button>
+          {readOnly ? (
+            <span className="flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold" style={{ color: T.muted, background: T.bg }}>
+              <Lock size={12} /> Solo lectura
+            </span>
+          ) : (
+            <button onClick={() => setShareOpen(true)} className="hov flex items-center gap-1 rounded px-2.5 py-1 text-[12px] font-semibold text-[var(--accent)] bg-[var(--accent-soft)] transition cursor-pointer">
+              <Share2 size={13} /> Compartir
+            </button>
+          )}
           {isOwner && (
             <>
               <button onClick={onAddSub} className="hov flex items-center gap-1 rounded px-2 py-1"><CornerDownRight size={13} /> Sub-página</button>
@@ -3909,12 +3925,13 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
                            onEnter={(afterType, carry) => insertAfter(b.id, { ...emptyBlock(afterType), text: carry })}
                            onDelete={() => removeBlock(b.id)}
                            onFocusPrev={() => { const p = page.blocks[idx - 1]; if (p) setFocusId(p.id); }}
-                           showToast={showToast} user={user} />
+                           showToast={showToast} user={user} readOnly={readOnly} />
           ))}
         </SortableContext>
       </DndContext>
 
-      <div onClick={() => insertAfter(page.blocks[page.blocks.length - 1].id, emptyBlock())} className="mt-1 h-24 cursor-text" />
+      <div onClick={() => { if (!readOnly) insertAfter(page.blocks[page.blocks.length - 1].id, emptyBlock()); }}
+           className={`mt-1 h-24 ${readOnly ? "" : "cursor-text"}`} />
 
       {/* Modal para Compartir Página */}
       {shareOpen && (
@@ -4294,10 +4311,17 @@ function NotificationPanel({ notifications, setNotifications, onSelectNotif, onA
 }
 
 /* ================= Chip de fecha ================= */
-function DateChip({ block, onChange }) {
+function DateChip({ block, onChange, readOnly }) {
   const [open, setOpen] = useState(false);
   const has = !!block.date;
   const fieldStyle = { borderColor: T.border, background: "var(--card)", color: T.ink };
+  if (readOnly) {
+    return (
+      <span className="mt-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px]" style={{ background: has ? T.accentSoft : "transparent", color: has ? T.accent : T.muted }}>
+        <CalendarDays size={12} /> {has ? chipLabel(block.date, block.time) : "Fecha"}
+      </span>
+    );
+  }
   return (
     <div className="relative flex-shrink-0">
       <button onClick={() => setOpen(o => !o)}
@@ -4323,7 +4347,7 @@ function DateChip({ block, onChange }) {
 }
 
 /* ================= Componente Bloque de Imagen ================= */
-function ImageBlock({ block, onChange, onDelete, user, showToast }) {
+function ImageBlock({ block, onChange, onDelete, user, showToast, readOnly }) {
   const handleImageFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -4369,9 +4393,11 @@ function ImageBlock({ block, onChange, onDelete, user, showToast }) {
       {block.imageUrl ? (
         <div className="relative overflow-hidden rounded-lg">
           <img src={block.imageUrl} alt="Cargada" className="max-h-[350px] w-full object-cover" />
-          <button onClick={onDelete} className="absolute right-2 top-2 rounded-full p-1.5 shadow-lg bg-black/60 hover:bg-black/80 text-white transition cursor-pointer">
-            <Trash2 size={14} />
-          </button>
+          {!readOnly && (
+            <button onClick={onDelete} className="absolute right-2 top-2 rounded-full p-1.5 shadow-lg bg-black/60 hover:bg-black/80 text-white transition cursor-pointer">
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -4387,6 +4413,7 @@ function ImageBlock({ block, onChange, onDelete, user, showToast }) {
               </div>
               <p className="text-xs font-semibold" style={{ color: T.ink }}>Bloque de Imagen</p>
               <p className="text-[10px] px-4" style={{ color: T.muted }}>Sube un archivo o usa la cámara de tu dispositivo</p>
+              {!readOnly && (
               <div className="flex gap-2 mt-2">
                 <label className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition shadow cursor-pointer hover:brightness-105" style={{ background: T.accent }}>
                   <UploadCloud size={13} /> Seleccionar
@@ -4397,9 +4424,12 @@ function ImageBlock({ block, onChange, onDelete, user, showToast }) {
                   <input type="file" accept="image/*" capture="environment" onChange={handleImageFile} className="hidden" />
                 </label>
               </div>
+              )}
             </div>
           )}
+          {!readOnly && (
           <button onClick={onDelete} className="absolute right-2 top-2 md:opacity-0 md:group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+          )}
         </div>
       )}
     </div>
@@ -4407,7 +4437,7 @@ function ImageBlock({ block, onChange, onDelete, user, showToast }) {
 }
 
 /* ================= Componente Bloque de Audio ================= */
-function AudioBlock({ block, onChange, onDelete, user, showToast }) {
+function AudioBlock({ block, onChange, onDelete, user, showToast, readOnly }) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -4538,9 +4568,11 @@ function AudioBlock({ block, onChange, onDelete, user, showToast }) {
               </span>
             </div>
           </div>
+          {!readOnly && (
           <button onClick={onDelete} className="rounded-full p-1.5 text-neutral-400 hover:text-red-500 transition hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer">
             <Trash2 size={14} />
           </button>
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-5 text-center">
@@ -4567,12 +4599,16 @@ function AudioBlock({ block, onChange, onDelete, user, showToast }) {
               </div>
               <p className="text-xs font-semibold" style={{ color: T.ink }}>Nota de voz</p>
               <p className="text-[10px]" style={{ color: T.muted }}>Graba tus pensamientos en formato de audio</p>
+              {!readOnly && (
               <button onClick={startRecording} className="mt-2 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition shadow hover:brightness-105 active:scale-98 cursor-pointer" style={{ background: T.accent }}>
                 <Mic size={13} /> Comenzar a grabar
               </button>
+              )}
             </div>
           )}
+          {!readOnly && (
           <button onClick={onDelete} className="absolute right-2 top-2 md:opacity-0 md:group-hover:opacity-100 transition rounded p-1 cursor-pointer"><X size={14} style={{ color: T.muted }} /></button>
+          )}
         </div>
       )}
     </div>
@@ -4580,7 +4616,7 @@ function AudioBlock({ block, onChange, onDelete, user, showToast }) {
 }
 
 /* ================= Componente Bloque de Enlace ================= */
-function LinkBlock({ block, onChange, onDelete }) {
+function LinkBlock({ block, onChange, onDelete, readOnly }) {
   const handleUrlChange = (e) => {
     onChange({ text: e.target.value });
   };
@@ -4643,9 +4679,9 @@ function LinkBlock({ block, onChange, onDelete }) {
                 <Link size={24} />
               </div>
               <div className="min-w-0 flex-1">
-                <input type="text" value={block.linkTitle || ""} onChange={e => onChange({ linkTitle: e.target.value })}
+                <input type="text" value={block.linkTitle || ""} readOnly={readOnly} onChange={e => onChange({ linkTitle: e.target.value })}
                        className="block w-full bg-transparent font-serif text-sm font-bold leading-tight outline-none border-b border-transparent focus:border-neutral-300" style={{ color: T.ink }} />
-                <textarea rows={2} value={block.linkDescription || ""} onChange={e => onChange({ linkDescription: e.target.value })}
+                <textarea rows={2} value={block.linkDescription || ""} readOnly={readOnly} onChange={e => onChange({ linkDescription: e.target.value })}
                           className="block w-full mt-1 resize-none bg-transparent text-[11px] leading-relaxed outline-none border-b border-transparent focus:border-neutral-300" style={{ color: T.muted }} />
                 <a href={block.text} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1 text-[10px] hover:underline" style={{ color: T.accent }}>
                   <span>{block.hostname || block.text}</span>
@@ -4654,20 +4690,26 @@ function LinkBlock({ block, onChange, onDelete }) {
               </div>
             </div>
           )}
+          {!readOnly && (
           <button onClick={onDelete} className="absolute right-2 top-2 rounded-full p-1.5 shadow bg-white dark:bg-neutral-800 border text-neutral-400 hover:text-red-500 transition cursor-pointer" style={{ borderColor: T.border }}>
             <Trash2 size={13} />
           </button>
+          )}
         </div>
       ) : (
         <div className="flex items-center gap-2 w-full">
-          <input type="text" autoFocus value={block.text} onChange={handleUrlChange}
+          <input type="text" autoFocus value={block.text} readOnly={readOnly} onChange={handleUrlChange}
                  onKeyDown={e => { if (e.key === "Enter") handleLoadLink(); }}
                  placeholder="Pega un enlace (YouTube, Spotify, etc.) y presiona Enter..."
                  className="w-full flex-1 rounded border px-3 py-1.5 text-xs outline-none bg-[var(--card)]" style={{ borderColor: T.border, color: T.ink }} />
-          <button onClick={handleLoadLink} className="rounded px-3 py-1.5 text-xs font-semibold text-white transition shadow cursor-pointer hover:brightness-105" style={{ background: T.accent }}>
-            Cargar
-          </button>
-          <button onClick={onDelete} className="rounded p-1 text-neutral-400 hover:text-red-500 transition cursor-pointer"><X size={15} /></button>
+          {!readOnly && (
+          <>
+            <button onClick={handleLoadLink} className="rounded px-3 py-1.5 text-xs font-semibold text-white transition shadow cursor-pointer hover:brightness-105" style={{ background: T.accent }}>
+              Cargar
+            </button>
+            <button onClick={onDelete} className="rounded p-1 text-neutral-400 hover:text-red-500 transition cursor-pointer"><X size={15} /></button>
+          </>
+          )}
         </div>
       )}
     </div>
@@ -4692,7 +4734,7 @@ function SortableBlock(props) {
 }
 
 /* ================= Bloque ================= */
-function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev, showToast, user, dragHandle }) {
+function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete, onFocusPrev, showToast, user, dragHandle, readOnly }) {
   const ref = useRef(null);
   const [menu, setMenu] = useState(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -4734,6 +4776,7 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
   };
 
   const handleKeyDown = (e) => {
+    if (readOnly) return;
     if (menu && e.key === "Escape") { setMenu(null); return; }
     if (e.key === "Enter" && !e.shiftKey && !menu) {
       e.preventDefault();
@@ -4755,11 +4798,11 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
   let blockContent = null;
 
   if (block.type === "image") {
-    blockContent = <ImageBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+    blockContent = <ImageBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} readOnly={readOnly} />;
   } else if (block.type === "audio") {
-    blockContent = <AudioBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} />;
+    blockContent = <AudioBlock block={block} onChange={onChange} onDelete={onDelete} user={user} showToast={showToast} readOnly={readOnly} />;
   } else if (block.type === "link") {
-    blockContent = <LinkBlock block={block} onChange={onChange} onDelete={onDelete} />;
+    blockContent = <LinkBlock block={block} onChange={onChange} onDelete={onDelete} readOnly={readOnly} />;
   } else if (block.type === "divider") {
     blockContent = <hr className="w-full" style={{ borderColor: T.border }} />;
   } else {
@@ -4767,8 +4810,8 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
     blockContent = (
       <div className="flex items-start gap-1.5 w-full min-w-0">
         {block.type === "todo" && (
-          <button onClick={() => onChange({ checked: !block.checked, completedAt: !block.checked ? new Date().toISOString() : null })}
-                  className="mt-[6px] grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded border transition"
+          <button onClick={() => { if (!readOnly) onChange({ checked: !block.checked, completedAt: !block.checked ? new Date().toISOString() : null }); }}
+                  className={`mt-[6px] grid h-[18px] w-[18px] flex-shrink-0 place-items-center rounded border transition ${readOnly ? "" : "cursor-pointer"}`}
                   style={{ borderColor: block.checked ? T.accent : T.border, background: block.checked ? T.accent : "transparent" }}>
             {block.checked && <CheckSquare size={12} className="text-white" strokeWidth={3} />}
           </button>
@@ -4777,14 +4820,14 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
         {block.type === "number" && <span className="mt-[3px] flex-shrink-0 select-none text-[15px]" style={{ color: T.muted }}>{index + 1}.</span>}
 
         <div className="relative flex-1 min-w-0">
-          <textarea ref={ref} rows={1} value={block.text} onChange={handleChange} onKeyDown={handleKeyDown}
+          <textarea ref={ref} rows={1} value={block.text} onChange={handleChange} onKeyDown={handleKeyDown} readOnly={readOnly}
                     placeholder={index === 0 && block.type === "text" ? "Escribe, o pulsa “/” para comandos" : ""}
                     className={`w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-neutral-300 ${s.cls}`}
                     style={{ ...s.style, textDecoration: block.type === "todo" && block.checked ? "line-through" : "none", color: block.type === "todo" && block.checked ? T.muted : (s.style?.color || T.ink) }} />
           {menu && <MenuList query={menu.query} onPick={applyType} />}
         </div>
 
-        {block.type === "todo" && <DateChip block={block} onChange={onChange} />}
+        {block.type === "todo" && <DateChip block={block} onChange={onChange} readOnly={readOnly} />}
       </div>
     );
   }
@@ -4796,6 +4839,7 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
       </div>
 
       {/* Control pill (drag handle, menú …) */}
+      {!readOnly && (
       <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-neutral-100/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/60 rounded-xl px-1.5 py-0.5 shadow-md opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
         <button
           {...(dragHandle?.attributes || {})}
@@ -4822,6 +4866,7 @@ function Block({ block, index, focusId, clearFocus, onChange, onEnter, onDelete,
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
