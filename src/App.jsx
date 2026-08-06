@@ -74,6 +74,16 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function arrayBuffersEqual(a, b) {
+  const aBytes = a instanceof Uint8Array ? a : new Uint8Array(a.buffer || a);
+  const bBytes = b instanceof Uint8Array ? b : new Uint8Array(b.buffer || b);
+  if (aBytes.length !== bBytes.length) return false;
+  for (let i = 0; i < aBytes.length; i++) {
+    if (aBytes[i] !== bBytes[i]) return false;
+  }
+  return true;
+}
+
 const EMOJIS = ["📄","📝","✅","💡","🎯","📊","💰","🚀","📅","🔥","⭐","📌","🗂️","🧠","🛠️","☕"];
 
 const BLOCK_MENU = [
@@ -1483,12 +1493,23 @@ export default function App() {
         console.warn("Falta VITE_VAPID_PUBLIC_KEY en las variables de entorno.");
         return;
       }
-      
+
+      const currentKeyBytes = urlBase64ToUint8Array(vapidKey);
+
       let subscription = await registration.pushManager.getSubscription();
+      const existingKeyBytes = subscription?.options?.applicationServerKey;
+      const keyChanged = !!existingKeyBytes && !arrayBuffersEqual(existingKeyBytes, currentKeyBytes);
+
+      if (keyChanged) {
+        console.log("La clave VAPID cambió, re-suscribiendo a push...");
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey)
+          applicationServerKey: currentKeyBytes
         });
       }
       
