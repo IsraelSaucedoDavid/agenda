@@ -1,0 +1,26 @@
+-- ============================================================================
+-- ÓRBITA · Fix upsert de push_subscriptions (conflicto por endpoint)
+-- ----------------------------------------------------------------------------
+-- Problema: la upsert usaba on_conflict=(user_id, device_fp), pero la tabla
+-- tiene un constraint UNIQUE sobre `endpoint`. Cuando un navegador ya tenía
+-- una fila heredada (sin device_fp, anterior al dedupe) y vuelve a registrarse
+-- con el MISMO endpoint y un device_fp nuevo, la fila no coincide con el
+-- on_conflict y el INSERT viola push_subscriptions_endpoint_key -> 409/23505.
+--
+-- Solución: el endpoint ES la identidad real de una suscripción push (único
+-- por navegador/instalación). La app hace upsert sobre `endpoint`:
+--   · mismo navegador re-registra  -> actualiza la misma fila (se rellenan
+--     device_fp/device_id de las filas heredadas: ni duplicados ni conflictos).
+--   · dispositivo distinto         -> endpoint distinto -> su propia fila.
+--   · dispositivo con varias cuentas (navegador compartido) -> la fila queda
+--     asociada al último usuario que se registró (comportamiento no rompible).
+-- Las filas de endpoints muertos las sigue limpiando el worker (FCM 410).
+-- El constraint UNIQUE de endpoint (push_subscriptions_endpoint_key) ya
+-- existe: no hay que crearlo de nuevo.
+--
+-- Ejecutar en: Supabase → SQL Editor (una sola pasada, es idempotente).
+-- ============================================================================
+
+-- 1) Quitar el índice único (user_id, device_fp): es el que provocaba el 409
+--    al combinarse con el UNIQUE de endpoint.
+drop index if exists public.push_subscriptions_user_device_key;

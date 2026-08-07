@@ -1574,7 +1574,7 @@ export default function App() {
           auth: subJSON.keys.auth,
           device_id: getDeviceId(),
           device_fp: getDeviceFingerprint()
-        }, { onConflict: "user_id,device_fp" });
+        }, { onConflict: "endpoint" });
 
       if (error) throw error;
       console.log("Suscripción Push registrada en Supabase.");
