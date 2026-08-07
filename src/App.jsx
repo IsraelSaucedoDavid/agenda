@@ -829,7 +829,7 @@ export default function App() {
     const userEmail = user.email?.toLowerCase();
 
     // Escuchar notificaciones en tiempo real para este usuario
-    const notifChannel = supabase.channel(`user_notifs:${userEmail}`);
+    const notifChannel = supabase.channel(`user_notifs:${userEmail}`, { config: { private: true } });
     notifChannel
       .on("broadcast", { event: "new_shared_page_invite" }, ({ payload }) => {
         const notifId = `invite:${payload.shareId || Date.now()}`;
@@ -1349,7 +1349,7 @@ export default function App() {
         if (shares && shares.length > 0) {
           shares.forEach(sp => {
             try {
-              const notifChan = supabase.channel(`user_notifs:${sp.shared_with_email.toLowerCase()}`);
+              const notifChan = supabase.channel(`user_notifs:${sp.shared_with_email.toLowerCase()}`, { config: { private: true } });
               notifChan.subscribe(async (status) => {
                 if (status === "SUBSCRIBED") {
                   await notifChan.send({
@@ -2062,7 +2062,7 @@ export default function App() {
 
                                // Notificar al propietario
                                if (supabase && n.ownerEmail) {
-                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`);
+                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`, { config: { private: true } });
                                  respChan.subscribe(async (status) => {
                                    if (status === "SUBSCRIBED") {
                                      await respChan.send({
@@ -2102,7 +2102,7 @@ export default function App() {
 
                                // Notificar al propietario
                                if (supabase && n.ownerEmail) {
-                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`);
+                                 const respChan = supabase.channel(`user_notifs:${n.ownerEmail.toLowerCase()}`, { config: { private: true } });
                                  respChan.subscribe(async (status) => {
                                    if (status === "SUBSCRIBED") {
                                      await respChan.send({
@@ -3928,7 +3928,7 @@ function Editor({ page, updatePage, updateBlockInPage, onAddSub, onDelete, setCo
     if (!supabase || !page?.id || !user) return;
 
     const channel = supabase.channel(`page:${page.id}`, {
-      config: { presence: { key: user.id } }
+      config: { private: true, presence: { key: user.id } }
     });
 
     channelRef.current = channel;
@@ -4244,7 +4244,7 @@ function ShareModal({ page, user, onClose, showToast }) {
 
         // Transmitir notificación de invitación en tiempo real al destinatario
         try {
-          const notifChan = supabase.channel(`user_notifs:${targetEmail}`);
+          const notifChan = supabase.channel(`user_notifs:${targetEmail}`, { config: { private: true } });
           notifChan.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
               await notifChan.send({
@@ -4292,7 +4292,7 @@ function ShareModal({ page, user, onClose, showToast }) {
         // Notificar en tiempo real al usuario desvinculado
         try {
           const targetEmail = shareEmail.toLowerCase();
-          const notifChan = supabase.channel(`user_notifs:${targetEmail}`);
+          const notifChan = supabase.channel(`user_notifs:${targetEmail}`, { config: { private: true } });
           notifChan.subscribe(async (status) => {
             if (status === "SUBSCRIBED") {
               await notifChan.send({
