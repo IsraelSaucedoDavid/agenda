@@ -4287,23 +4287,30 @@ function ShareModal({ page, user, onClose, showToast }) {
     }
     try {
       if (supabase && shareId) {
-        await supabase.from("page_shares").delete().eq("id", shareId);
+        // Notificar primero en tiempo real (la política RLS de realtime evalúa
+        // la relación de page_shares al suscribirse, por eso debe existir la fila)
+        await new Promise((resolve) => {
+          try {
+            const targetEmail = shareEmail.toLowerCase();
+            const notifChan = supabase.channel(`user_notifs:${targetEmail}`, { config: { private: true } });
+            notifChan.subscribe(async (status) => {
+              if (status === "SUBSCRIBED") {
+                try {
+                  await notifChan.send({
+                    type: "broadcast",
+                    event: "page_access_revoked",
+                    payload: { pageId: page.id, pageTitle: page.title || "Sin título" }
+                  });
+                } catch { /* ignore */ }
+                setTimeout(() => { try { notifChan.unsubscribe(); } catch { /* ignore */ } resolve(); }, 300);
+              } else if (status === "CHANNEL_ERROR" || status === "CLOSED") {
+                resolve();
+              }
+            });
+          } catch { resolve(); }
+        });
 
-        // Notificar en tiempo real al usuario desvinculado
-        try {
-          const targetEmail = shareEmail.toLowerCase();
-          const notifChan = supabase.channel(`user_notifs:${targetEmail}`, { config: { private: true } });
-          notifChan.subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-              await notifChan.send({
-                type: "broadcast",
-                event: "page_access_revoked",
-                payload: { pageId: page.id, pageTitle: page.title || "Sin título" }
-              });
-              setTimeout(() => notifChan.unsubscribe(), 1000);
-            }
-          });
-        } catch { /* ignore */ }
+        await supabase.from("page_shares").delete().eq("id", shareId);
       }
       setShares(s => s.filter(item => item.id !== shareId));
       if (showToast) showToast(`Acceso revocado a ${shareEmail}`);

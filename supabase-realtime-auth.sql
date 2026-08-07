@@ -19,11 +19,12 @@
 
 -- ---------------------------------------------------------------------------
 -- CANAL user_notifs:<email>
---   · Leer (SELECT): solo el usuario dueño de ese correo.
---   · Enviar (INSERT): cualquier autenticado (join write-only). El canal es
---     efímero (avisos de UI); el acceso real a los datos lo sigue gobernando
---     el RLS de `page_shares`. Riesgo residual aceptado: un usuario logueado
---     podría spamear una notificación falsa (sin acceso a datos).
+--   · Leer (SELECT) y Escribir (INSERT): el dueño del correo, el dueño de una
+--     invitación hacia ese correo, o el invitado por ese correo (relación real
+--     de page_shares en ambos sentidos).
+--   · Nota: el servidor rechaza un canal privado si no hay permiso de LECTURA
+--     (no existe el join "write-only"), por eso SELECT e INSERT usan la misma
+--     regla de relación.
 -- ---------------------------------------------------------------------------
 drop policy if exists "rt_user_notifs_read" on realtime.messages;
 create policy "rt_user_notifs_read"
@@ -31,8 +32,21 @@ create policy "rt_user_notifs_read"
   as permissive for select to authenticated
   using (
     (select realtime.topic()) like 'user_notifs:%'
-    and lower(split_part((select realtime.topic()), ':', 2))
-        = lower(coalesce((select auth.jwt() ->> 'email'), ''))
+    and (
+      lower(split_part((select realtime.topic()), ':', 2))
+          = lower(coalesce((select auth.jwt() ->> 'email'), ''))
+      or exists (
+        select 1 from public.page_shares ps
+        where lower(ps.shared_with_email) = lower(split_part((select realtime.topic()), ':', 2))
+          and ps.owner_id = (select auth.uid())
+      )
+      or exists (
+        select 1 from public.page_shares ps
+        join public.profiles p on p.id = ps.owner_id
+        where lower(p.email) = lower(split_part((select realtime.topic()), ':', 2))
+          and lower(ps.shared_with_email) = lower(coalesce((select auth.jwt() ->> 'email'), ''))
+      )
+    )
   );
 
 drop policy if exists "rt_user_notifs_write" on realtime.messages;
@@ -41,7 +55,21 @@ create policy "rt_user_notifs_write"
   as permissive for insert to authenticated
   with check (
     (select realtime.topic()) like 'user_notifs:%'
-    and realtime.messages.extension in ('broadcast')
+    and (
+      lower(split_part((select realtime.topic()), ':', 2))
+          = lower(coalesce((select auth.jwt() ->> 'email'), ''))
+      or exists (
+        select 1 from public.page_shares ps
+        where lower(ps.shared_with_email) = lower(split_part((select realtime.topic()), ':', 2))
+          and ps.owner_id = (select auth.uid())
+      )
+      or exists (
+        select 1 from public.page_shares ps
+        join public.profiles p on p.id = ps.owner_id
+        where lower(p.email) = lower(split_part((select realtime.topic()), ':', 2))
+          and lower(ps.shared_with_email) = lower(coalesce((select auth.jwt() ->> 'email'), ''))
+      )
+    )
   );
 
 -- ---------------------------------------------------------------------------
